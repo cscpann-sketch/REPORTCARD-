@@ -1,0 +1,2005 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>डिजिटल रिपोर्ट कार्ड रजिस्टर</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@500;700&family=Noto+Sans+Devanagari:wght@400;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style>
+  :root{
+    --paper:#F6F3EC; --paper-2:#FCFAF4; --ink:#21281F;
+    --chalk:#2F5D50; --chalk-light:#3E7566;
+    --marigold:#D98F2B; --redpen:#B23A32; --line:#D8D2C2; --muted:#6B6456;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans Devanagari','Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.display{font-family:'Noto Serif Devanagari',serif;letter-spacing:.2px;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  header.top{background:var(--chalk);color:var(--paper-2);padding:22px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  header.top h1{margin:0;font-size:1.5rem;font-weight:700;}
+  header.top .tagline{font-size:.82rem;opacity:.8;margin-top:2px;}
+  header.top .who{font-size:.85rem;text-align:right;}
+  header.top button.logout{background:transparent;border:1px solid rgba(255,255,255,.5);color:var(--paper-2);padding:6px 14px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:.8rem;margin-left:10px;}
+  header.top button.logout:hover{background:rgba(255,255,255,.12);}
+  nav.tabs{display:flex;gap:2px;background:var(--chalk-light);padding:0 24px;overflow-x:auto;}
+  nav.tabs button{background:transparent;border:none;color:rgba(255,255,255,.75);padding:12px 16px;cursor:pointer;font-family:'Noto Sans Devanagari',sans-serif;font-size:.87rem;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap;}
+  nav.tabs button.active{color:#fff;border-bottom-color:var(--marigold);}
+  nav.tabs button:hover{color:#fff;}
+  main{max-width:1040px;margin:26px auto 60px;padding:0 16px;}
+  .page{background:var(--paper-2);border:1px solid var(--line);border-radius:6px;position:relative;padding:28px 28px 28px 56px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .page::before{content:"";position:absolute;left:34px;top:0;bottom:0;width:2px;background:var(--redpen);opacity:.55;}
+  .page .punch{position:absolute;left:14px;top:36px;width:10px;height:10px;border-radius:50%;background:var(--paper);border:1px solid var(--line);box-shadow:0 90px 0 var(--paper),0 90px 0 1px var(--line),0 180px 0 var(--paper),0 180px 0 1px var(--line),0 270px 0 var(--paper),0 270px 0 1px var(--line);}
+  h2.section-title{font-size:1.15rem;margin:0 0 4px;color:var(--chalk);}
+  p.section-sub{margin:0 0 20px;color:var(--muted);font-size:.85rem;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px;}
+  .field label{font-size:.75rem;color:var(--muted);font-weight:600;}
+  input,select{font-family:inherit;font-size:.9rem;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink);}
+  input:focus,select:focus{outline:2px solid var(--chalk-light);outline-offset:1px;}
+  input.mark-invalid{border-color:var(--redpen);background:#FBEAE8;outline:2px solid var(--redpen);outline-offset:1px;}
+  button.primary{background:var(--chalk);color:#fff;border:none;padding:9px 18px;border-radius:4px;font-family:inherit;font-weight:600;cursor:pointer;font-size:.88rem;}
+  button.primary:hover{background:var(--chalk-light);}
+  button.ghost{background:transparent;border:1px solid var(--chalk);color:var(--chalk);padding:8px 14px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:.85rem;font-weight:600;}
+  button.ghost:hover{background:rgba(47,93,80,.08);}
+  button.danger{background:transparent;border:1px solid var(--redpen);color:var(--redpen);padding:6px 10px;border-radius:4px;cursor:pointer;font-size:.78rem;}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.87rem;}
+  th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;}
+  th{color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.03em;}
+  td.num, th.num{text-align:center;}
+  tr:hover td{background:rgba(47,93,80,.04);}
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:10px;}
+  .assign-card{border:1px solid var(--line);border-radius:6px;padding:16px;background:#fff;cursor:pointer;transition:box-shadow .15s, transform .15s;}
+  .assign-card:hover{box-shadow:0 3px 10px rgba(0,0,0,.08);transform:translateY(-1px);}
+  .assign-card .cls{font-family:'Noto Serif Devanagari',serif;font-size:1.05rem;color:var(--chalk);}
+  .assign-card .sub{color:var(--marigold);font-weight:700;font-size:.85rem;margin-top:2px;}
+  .assign-card .meta{color:var(--muted);font-size:.75rem;margin-top:8px;}
+  .note{background:#FBF3E4;border:1px solid #EBD9AF;color:#7A5A15;padding:10px 14px;border-radius:5px;font-size:.82rem;margin-bottom:16px;}
+  .empty{color:var(--muted);font-size:.85rem;padding:18px 0;text-align:center;}
+  .login-box{max-width:380px;margin:60px auto;}
+  .role-choice{display:flex;gap:14px;justify-content:center;margin-bottom:26px;}
+  .role-choice button{flex:1;padding:20px 10px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-family:'Noto Serif Devanagari',serif;font-size:1.05rem;color:var(--chalk);}
+  .role-choice button:hover{border-color:var(--chalk);background:rgba(47,93,80,.05);}
+  .grade-A1{color:#1E7A4C;font-weight:700;} .grade-A2{color:#3E7566;font-weight:700;}
+  .grade-B1{color:var(--marigold);font-weight:700;} .grade-B2{color:#B2762D;font-weight:700;}
+  .grade-C{color:var(--redpen);font-weight:700;} .grade-D{color:var(--redpen);font-weight:700;}
+  .report-card{width:190mm;height:277mm;overflow:hidden;border:1px solid var(--line);border-radius:6px;padding:12mm 14mm;background:#fff;margin:0 auto 22px;box-sizing:border-box;position:relative;page-break-after:always;page-break-inside:avoid;box-shadow:0 2px 10px rgba(0,0,0,.08);}
+  .report-card:last-of-type{page-break-after:auto;}
+  .report-card .rc-inner{transform-origin:top center;}
+  .report-card .rc-header{text-align:center;border-bottom:3px solid var(--chalk);padding-bottom:10px;margin-bottom:14px;}
+  .report-card .rc-header .rc-logo{max-height:56px;max-width:120px;object-fit:contain;margin-bottom:4px;}
+  .report-card .rc-header .rc-school-name{font-family:'Noto Serif Devanagari',serif;font-size:1.5rem;font-weight:700;color:var(--chalk);letter-spacing:.5px;line-height:1.2;}
+  .report-card .rc-header .rc-school-addr{font-family:'Noto Sans Devanagari',sans-serif;font-size:.8rem;color:var(--muted);margin-top:3px;}
+  .report-card .rc-header .rc-title{margin-top:8px;font-family:'Noto Serif Devanagari',serif;font-size:1.05rem;font-weight:700;color:#fff;background:var(--marigold);display:inline-block;padding:4px 18px;border-radius:3px;letter-spacing:.5px;}
+  .report-card h3{margin:0 0 2px;color:var(--chalk);}
+  .report-card .roll{color:var(--muted);font-size:.82rem;margin-bottom:12px;}
+  .report-card .summary{display:flex;gap:22px;margin-top:10px;font-size:.9rem;flex-wrap:wrap;}
+  .report-card .summary div b{display:block;font-family:'IBM Plex Mono',monospace;font-size:1.1rem;}
+  .exam-block{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px;}
+  .exam-block h4{margin:0 0 6px;color:var(--marigold);font-size:.92rem;font-family:'Noto Serif Devanagari',serif;}
+  .annual-block{margin-top:18px;border-top:2px solid var(--chalk);padding-top:14px;}
+  .annual-block h4{margin:0 0 6px;color:var(--chalk);font-size:1rem;font-family:'Noto Serif Devanagari',serif;}
+  .exam-tabbar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+  .exam-tabbar button{background:#fff;border:1px solid var(--line);color:var(--muted);padding:7px 14px;border-radius:16px;cursor:pointer;font-family:inherit;font-size:.82rem;font-weight:600;}
+  .exam-tabbar button.active{background:var(--chalk);border-color:var(--chalk);color:#fff;}
+  .type-tag{display:inline-block;font-size:.68rem;padding:1px 7px;border-radius:8px;background:rgba(47,93,80,.12);color:var(--chalk);margin-left:6px;}
+
+  /* ---- Admit Card ---- */
+  #admitPrintWrap{padding:0 0 30px;}
+  .admit-card{
+    width:210mm;min-height:297mm;margin:0 auto 26px;background:#fff;
+    border:1px solid var(--line);box-shadow:0 2px 10px rgba(0,0,0,.08);
+    padding:12mm 14mm;box-sizing:border-box;display:flex;flex-direction:column;
+    position:relative;overflow:hidden;
+  }
+  .admit-card .ac-watermark{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+  .admit-card .ac-watermark svg{width:100%;height:100%;display:block;}
+  .admit-card .ac-header,.admit-card .ac-main,.admit-card .ac-sched,.admit-card .ac-instructions,.admit-card .ac-signatures{position:relative;z-index:1;}
+  .admit-card .ac-header{text-align:center;border-bottom:3px solid var(--chalk);padding-bottom:10px;margin-bottom:16px;}
+  .admit-card .ac-header .ac-school-name{font-family:'Noto Serif Devanagari',serif;font-size:1.7rem;font-weight:700;color:var(--chalk);letter-spacing:.5px;line-height:1.2;width:100%;}
+  .admit-card .ac-header .ac-school-addr{font-family:'Noto Sans Devanagari',sans-serif;font-size:.82rem;color:var(--muted);margin-top:4px;}
+  .admit-card .ac-header .ac-admit-title{margin-top:10px;font-family:'Noto Serif Devanagari',serif;font-size:1.15rem;font-weight:700;color:#fff;background:var(--marigold);display:inline-block;padding:5px 22px;border-radius:3px;letter-spacing:.5px;}
+  .admit-card .ac-header .ac-exam-sub{display:block;margin-top:6px;font-size:.85rem;color:var(--chalk);font-weight:600;}
+  .admit-card .ac-main{display:flex;gap:22px;margin-bottom:20px;}
+  .admit-card .ac-photo{width:104px;height:126px;border:1px dashed var(--muted);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;text-align:center;flex-shrink:0;border-radius:4px;overflow:hidden;background:#fff;}
+  .admit-card .ac-photo img{width:100%;height:100%;object-fit:cover;}
+  .admit-card .ac-details{flex:1;}
+  .admit-card .ac-details table{width:100%;border-collapse:collapse;}
+  .admit-card .ac-details td{padding:6px 8px;font-size:.92rem;border-bottom:1px solid var(--line);}
+  .admit-card .ac-details td.k{color:var(--muted);width:36%;font-weight:600;}
+  .admit-card .ac-sched h4{margin:0 0 8px;color:var(--chalk);font-size:1rem;font-family:'Noto Serif Devanagari',serif;border-bottom:1px solid var(--line);padding-bottom:6px;}
+  .admit-card .ac-sched table{width:100%;border-collapse:collapse;font-size:.87rem;}
+  .admit-card .ac-sched th,.admit-card .ac-sched td{border:1px solid var(--line);padding:7px 9px;text-align:left;}
+  .admit-card .ac-sched th{background:rgba(47,93,80,.08);color:var(--chalk);font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;}
+  .admit-card .ac-instructions{margin-top:16px;font-size:.78rem;color:#7A5A15;background:#FBF3E4;border:1px solid #EBD9AF;padding:10px 14px;border-radius:5px;}
+  .admit-card .ac-instructions h5{margin:0 0 6px;font-size:.82rem;color:#7A5A15;font-family:'Noto Serif Devanagari',serif;}
+  .admit-card .ac-instructions ul{margin:0;padding-left:18px;}
+  .admit-card .ac-instructions li{margin-bottom:3px;}
+  .admit-card .ac-signatures{margin-top:auto;display:flex;justify-content:space-between;padding-top:34px;}
+  .admit-card .ac-sig{text-align:center;font-size:.8rem;color:var(--muted);width:28%;}
+  .admit-card .ac-sig .line{border-top:1px solid var(--ink);margin-bottom:5px;padding-top:5px;}
+  .admit-card-toolbar{display:flex;gap:10px;padding:14px 4px 20px;flex-wrap:wrap;align-items:center;}
+  .wm-settings{background:#F9F7F0;border:1px solid var(--line);border-radius:6px;padding:16px 16px 6px;margin:14px 0 18px;}
+  .wm-settings h4{margin:0 0 10px;color:var(--chalk);font-size:1rem;font-family:'Noto Serif Devanagari',serif;}
+  .wm-preview-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin:10px 0 16px;}
+  .wm-preview{width:150px;height:212px;background:#fff;border:1px solid var(--line);position:relative;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .wm-preview svg{width:100%;height:100%;display:block;}
+  .wm-preview-label{font-size:.72rem;color:var(--muted);}
+  .sched-editor input[type="date"], .sched-editor input[type="time"]{width:100%;}
+  .stu-pick-row{display:flex;align-items:center;gap:10px;padding:6px 2px;border-bottom:1px solid var(--line);font-size:.88rem;}
+  .stu-pick-row .roll{width:56px;color:var(--muted);}
+  .stu-thumb{width:26px;height:32px;object-fit:cover;border-radius:2px;border:1px solid var(--line);vertical-align:middle;}
+  textarea{font-family:inherit;font-size:.88rem;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink);width:100%;resize:vertical;}
+
+  @page{ size:A4; margin:10mm; }
+  @media print{
+    header.top, nav.tabs, .no-print{display:none !important;}
+    .page{box-shadow:none;border:none;padding:0;}
+    .page::before,.page .punch{display:none;}
+    main{max-width:100%;}
+    .admit-card{box-shadow:none;border:none;margin:0;width:100%;min-height:0;page-break-after:always;}
+    .admit-card:last-of-type{page-break-after:auto;}
+    .report-card{box-shadow:none;border:none;margin:0 auto;}
+    #admitPrintWrap{padding:0;}
+  }
+  @media (max-width:600px){ .page{padding:20px 16px;} .page::before,.page .punch{display:none;} }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>डिजिटल रिपोर्ट कार्ड रजिस्टर</h1>
+    <div class="tagline">Multi-School Report Card System · कई स्कूल, अलग-अलग डेटा · तिमाही · अर्धवार्षिक · वार्षिक</div>
+  </div>
+  <div id="headerRight" class="who"></div>
+</header>
+<nav class="tabs no-print" id="tabBar" style="display:none;"></nav>
+<main id="app"></main>
+
+<script>
+// ---------- FIREBASE (cloud/live storage) ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyBCk2jfEGZJceb15r0qQY4LN4F4ZDybLXs",
+  authDomain: "school-report-card-32844.firebaseapp.com",
+  databaseURL: "https://school-report-card-32844-default-rtdb.firebaseio.com",
+  projectId: "school-report-card-32844",
+  storageBucket: "school-report-card-32844.firebasestorage.app",
+  messagingSenderId: "389312909856",
+  appId: "1:389312909856:web:db210900cfc8d8351ea245",
+  measurementId: "G-CRQWZGYQF6"
+};
+firebase.initializeApp(firebaseConfig);
+const fbDB = firebase.database();
+
+function encodeFbKey(key){ return encodeURIComponent(key).replace(/\./g, '%2E'); }
+function decodeFbKey(key){ return decodeURIComponent(key.replace(/%2E/g, '.')); }
+
+// Anonymous auth must succeed before any database read/write is allowed by
+// the security rules. All storage calls below wait on this, so login works
+// correctly even if a user acts before background init finishes signing in.
+let authReadyResolve;
+const authReady = new Promise(res=>{ authReadyResolve = res; });
+
+// Drop-in replacement for the old sandboxed window.storage API, now backed by
+// Firebase Realtime Database so data is live/cloud-based and shared across all users.
+window.storage = {
+  async get(key, shared){
+    await authReady;
+    const snap = await fbDB.ref('data/' + encodeFbKey(key)).get();
+    if(!snap.exists()) return null;
+    return {key, value: snap.val(), shared: !!shared};
+  },
+  async set(key, value, shared){
+    await authReady;
+    await fbDB.ref('data/' + encodeFbKey(key)).set(value);
+    return {key, value, shared: !!shared};
+  },
+  async delete(key, shared){
+    await authReady;
+    await fbDB.ref('data/' + encodeFbKey(key)).remove();
+    return {key, deleted: true, shared: !!shared};
+  },
+  async list(prefix, shared){
+    await authReady;
+    const snap = await fbDB.ref('data').get();
+    if(!snap.exists()) return {keys: [], prefix, shared: !!shared};
+    const allKeys = Object.keys(snap.val()).map(decodeFbKey);
+    const filtered = prefix ? allKeys.filter(k=>k.startsWith(prefix)) : allKeys;
+    return {keys: filtered, prefix, shared: !!shared};
+  }
+};
+
+const REGISTRY_KEY = 'schools-registry-v1';
+const TEACHER_INDEX_KEY = 'teacher-index-v1';
+const MAIN_KEY = 'मुख्य';
+const SUPERADMIN_USER = 'superadmin';
+const SUPERADMIN_PASS = 'superadmin123';
+function schoolDbKey(id){ return 'school-db-v2::' + id; }
+
+let db = null;
+let session = null;
+let registry = [];            // [{id, name, address, loginUsername, loginPassword, createdAt}]
+let teacherIndex = {};        // { teacherUsername: schoolId }  -- global lookup so a teacher can log in without picking a school first
+let currentSchoolId = null;   // id of the school currently loaded into `db`
+let ui = { tab: 'school', teacherTab: null, examTab: null, admitPrintView: null, loginRole: null };
+let saState = { tab: 'list', search: '' }; // superadmin dashboard: 'list' (all schools) or 'add' (नया स्कूल जोड़ें)
+
+function emptyDB(){
+  return {
+    exams: ['तिमाही परीक्षा','अर्धवार्षिक परीक्षा','वार्षिक परीक्षा'],
+    teachers:{}, assignments:{}, classes:{}, marks:{},
+    examSchedule:{}, school:{name:'हमारा विद्यालय', address:''}, customInstructions:[],
+    watermark:{enabled:true, style:'rings', color:'#2F5D50', opacity:0.14, text:'', density:6, thickness:'normal', fontSize:100},
+    adminAuth:{username:'admin', password:'admin123'}
+  };
+}
+async function loadRegistry(){
+  try{ const res = await window.storage.get(REGISTRY_KEY, true); registry = res ? JSON.parse(res.value) : []; }
+  catch(e){ registry = []; }
+}
+// Same as loadRegistry but rethrows — used at login time so a real connection/
+// permission error can be shown to the user instead of a misleading "wrong password".
+async function loadRegistryOrThrow(){
+  const res = await window.storage.get(REGISTRY_KEY, true);
+  registry = res ? JSON.parse(res.value) : [];
+}
+async function saveRegistry(){
+  try{ await window.storage.set(REGISTRY_KEY, JSON.stringify(registry), true); }
+  catch(e){ console.error('registry save failed', e); }
+}
+async function loadTeacherIndex(){
+  try{ const res = await window.storage.get(TEACHER_INDEX_KEY, true); teacherIndex = res ? JSON.parse(res.value) : {}; }
+  catch(e){ teacherIndex = {}; }
+}
+async function loadTeacherIndexOrThrow(){
+  const res = await window.storage.get(TEACHER_INDEX_KEY, true);
+  teacherIndex = res ? JSON.parse(res.value) : {};
+}
+async function saveTeacherIndex(){
+  try{ await window.storage.set(TEACHER_INDEX_KEY, JSON.stringify(teacherIndex), true); }
+  catch(e){ console.error('teacher index save failed', e); }
+}
+// Read-only fetch of another school's raw DB, without touching global db/currentSchoolId (used for login verification)
+async function fetchSchoolDB(schoolId){
+  try{ const res = await window.storage.get(schoolDbKey(schoolId), true); return res ? JSON.parse(res.value) : null; }
+  catch(e){ return null; }
+}
+async function createSchool(name, address, adminUser, adminPass){
+  const id = 's' + Date.now() + Math.random().toString(36).slice(2,7);
+  registry.push({id, name, address: address||'', loginUsername: adminUser, loginPassword: adminPass, createdAt: Date.now()});
+  await saveRegistry();
+  const newDb = emptyDB();
+  newDb.school.name = name;
+  newDb.school.address = address||'';
+  newDb.adminAuth = {username: adminUser, password: adminPass};
+  try{ await window.storage.set(schoolDbKey(id), JSON.stringify(newDb), true); }
+  catch(e){ console.error('school create failed', e); }
+  return id;
+}
+async function syncRegistryEntryForCurrentSchool(){
+  const entry = registry.find(s=>s.id===currentSchoolId);
+  if(entry){
+    entry.name = db.school.name;
+    entry.address = db.school.address;
+    entry.loginUsername = db.adminAuth.username;
+    entry.loginPassword = db.adminAuth.password;
+    await saveRegistry();
+  }
+}
+async function deleteSchool(id){
+  registry = registry.filter(s=>s.id!==id);
+  await saveRegistry();
+  // also drop any teacher-index entries that pointed at this school
+  Object.keys(teacherIndex).forEach(u=>{ if(teacherIndex[u]===id) delete teacherIndex[u]; });
+  await saveTeacherIndex();
+  try{ await window.storage.delete(schoolDbKey(id), true); }catch(e){}
+}
+async function loadDB(schoolId){
+  try{ const res = await window.storage.get(schoolDbKey(schoolId), true); db = res ? JSON.parse(res.value) : emptyDB(); }
+  catch(e){ db = emptyDB(); }
+  if(!db.exams) db.exams = emptyDB().exams;
+  if(!db.examSchedule) db.examSchedule = {};
+  if(!db.school) db.school = {name:'हमारा विद्यालय', address:''};
+  if(!db.customInstructions) db.customInstructions = [];
+  if(!db.watermark) db.watermark = {enabled:true, style:'rings', color:'#2F5D50', opacity:0.14, text:'', density:6, thickness:'normal', fontSize:100};
+  if(db.watermark.density==null) db.watermark.density = 3;
+  if(!db.watermark.thickness) db.watermark.thickness = 'normal';
+  if(db.watermark.fontSize==null) db.watermark.fontSize = 100;
+  if(!db.adminAuth) db.adminAuth = {username:'admin', password:'admin123'};
+  currentSchoolId = schoolId;
+}
+async function saveDB(){
+  try{ await window.storage.set(schoolDbKey(currentSchoolId), JSON.stringify(db), true); }
+  catch(e){ console.error('save failed', e); }
+}
+async function exportAllData(){
+  const schools = {};
+  for(const s of registry){
+    const d = await fetchSchoolDB(s.id);
+    if(d) schools[s.id] = d;
+  }
+  const payload = {version:1, exportedAt: Date.now(), registry, teacherIndex, schools};
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `school-report-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+async function importAllData(file){
+  const text = await file.text();
+  let payload;
+  try{ payload = JSON.parse(text); }
+  catch(e){ throw new Error('यह एक मान्य JSON फ़ाइल नहीं है'); }
+  if(!payload || !Array.isArray(payload.registry) || typeof payload.schools !== 'object'){
+    throw new Error('यह एक मान्य बैकअप फ़ाइल नहीं है');
+  }
+  registry = payload.registry;
+  teacherIndex = payload.teacherIndex || {};
+  await saveRegistry();
+  await saveTeacherIndex();
+  for(const id of Object.keys(payload.schools)){
+    try{ await window.storage.set(schoolDbKey(id), JSON.stringify(payload.schools[id]), true); }
+    catch(e){ console.error('school import failed for', id, e); }
+  }
+}
+async function enterSchoolAsSuperAdmin(id){
+  const app = document.getElementById('app');
+  app.innerHTML = '<div class="page" style="text-align:center;color:var(--muted);">लोड हो रहा है…</div>';
+  await loadDB(id);
+  session = {role:'admin', superAdminMode:true};
+  ui = { tab: 'school', teacherTab: null, examTab: null, admitPrintView: null, loginRole: null };
+  render();
+}
+function backToSuperAdmin(){ session={role:'superadmin'}; currentSchoolId=null; db=null; ui={tab:'school',teacherTab:null,examTab:null,admitPrintView:null,loginRole:null}; render(); }
+function grade(pct){
+  if(pct>=90) return ['A1','grade-A1'];
+  if(pct>=75) return ['A2','grade-A2'];
+  if(pct>=60) return ['B1','grade-B1'];
+  if(pct>=45) return ['B2','grade-B2'];
+  if(pct>=33) return ['C','grade-C'];
+  return ['D (अनुत्तीर्ण)','grade-D'];
+}
+function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstElementChild; }
+function readAndCompressImage(file){
+  return new Promise((resolve, reject)=>{
+    if(!file){ resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const targetW = 180, targetH = 220;
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW; canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(targetW/img.width, targetH/img.height);
+        const sw = targetW/scale, sh = targetH/scale;
+        const sx = (img.width-sw)/2, sy = (img.height-sh)/2;
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = ()=> reject(new Error('image load failed'));
+      img.src = e.target.result;
+    };
+    reader.onerror = ()=> reject(new Error('file read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function render(){
+  const app = document.getElementById('app');
+  const tabBar = document.getElementById('tabBar');
+  const headerRight = document.getElementById('headerRight');
+  app.innerHTML=''; tabBar.innerHTML=''; headerRight.innerHTML='';
+
+  if(!session){
+    tabBar.style.display='none';
+    app.appendChild(renderUnifiedLogin());
+    return;
+  }
+
+  if(session.role==='superadmin'){
+    tabBar.style.display='none';
+    headerRight.innerHTML = `सुपर एडमिन<button class="logout" onclick="logout()">लॉग आउट</button>`;
+    app.appendChild(renderSuperAdminDashboard());
+    return;
+  }
+
+  tabBar.style.display='flex';
+
+  if(session.role==='admin'){
+    const navBtn = session.superAdminMode
+      ? `<button class="logout" onclick="backToSuperAdmin()">← सुपर एडमिन डैशबोर्ड</button>`
+      : `<button class="logout" onclick="logout()">लॉग आउट</button>`;
+    const modeTag = session.superAdminMode ? ' (सुपर एडमिन एक्सेस)' : '';
+    headerRight.innerHTML = `<b>${db.school.name||''}</b> · स्कूल एडमिन${modeTag}${navBtn}`;
+    if(ui.admitPrintView){
+      tabBar.style.display='none';
+      app.appendChild(renderAdmitCardPrintView(ui.admitPrintView));
+      return;
+    }
+    const allTabs=[['school','विद्यालय जोड़ें'],['classes','कक्षा व छात्र'],['exams','परीक्षाएँ'],['teachers','अध्यापक'],['assign','विषय असाइन'],['admit','प्रवेश पत्र'],['reports','रिपोर्ट कार्ड']];
+    const tabs = allTabs.filter(([key])=> key!=='school');
+    if(!tabs.some(([key])=> key===ui.tab)) ui.tab = tabs[0][0];
+    tabs.forEach(([key,label])=>{
+      const b=el(`<button class="${ui.tab===key?'active':''}">${label}</button>`);
+      b.onclick=()=>{ui.tab=key; render();};
+      tabBar.appendChild(b);
+    });
+    app.appendChild(renderAdminTab());
+  } else {
+    const t = db.teachers[session.username];
+    headerRight.innerHTML = `<b>${db.school.name||''}</b> · <b>${t?t.name:session.username}</b> (अध्यापक)<button class="logout" onclick="logout()">लॉग आउट</button>`;
+    tabBar.appendChild(el(`<button class="active">मेरी कक्षाएँ</button>`));
+    app.appendChild(renderTeacherTab());
+  }
+}
+function logout(){ session=null; currentSchoolId=null; db=null; ui={tab:'school',teacherTab:null,examTab:null,admitPrintView:null,loginRole:null}; render(); }
+
+// ---------- SCHOOL PICKER (public) ----------
+// ---------- UNIFIED LOGIN (Admin / School / Teacher) ----------
+function renderUnifiedLogin(){
+  const wrap = el(`<div class="login-box">
+    <div style="text-align:center;margin-bottom:22px;">
+      <h2 style="margin:0 0 6px;color:var(--chalk);font-family:'Noto Serif Devanagari',serif;">डिजिटल रिपोर्ट कार्ड में आपका स्वागत है</h2>
+      <p style="margin:0;color:var(--muted);font-size:.9rem;">किसी भी प्रकार की समस्या के लिए हमारे व्हाट्सएप नंबर पर संपर्क करें — <b class="mono">8218454023</b><br>धन्यवाद</p>
+    </div>
+    <div class="role-choice">
+      <button id="pickSuperAdmin">🛡️<br>एडमिन लॉगिन</button>
+      <button id="pickSchool">🏫<br>स्कूल लॉगिन</button>
+      <button id="pickTeacher">✏️<br>अध्यापक लॉगिन</button>
+    </div>
+    <div id="loginForm" class="page"><div class="punch"></div></div>
+  </div>`);
+  const formHost = wrap.querySelector('#loginForm');
+
+  function showSuperAdminForm(){
+    ui.loginRole = 'superadmin';
+    formHost.innerHTML = `
+      <h2 class="section-title">एडमिन लॉगिन</h2>
+      <p class="section-sub">यहाँ से नए स्कूल जोड़े जाते हैं और सभी स्कूलों का पूरा डेटा देखा/बदला जा सकता है</p>
+      <div class="row"><div class="field"><label>Username</label><input id="sau"></div>
+      <div class="field"><label>Password</label><input id="sap" type="password"></div></div>
+      <button class="primary" id="saGo">लॉगिन करें</button>
+      <div id="saErr" style="color:var(--redpen);margin-top:10px;font-size:.85rem;"></div>`;
+    formHost.querySelector('#saGo').onclick = async ()=>{
+      const u = formHost.querySelector('#sau').value.trim(), p = formHost.querySelector('#sap').value;
+      if(u===SUPERADMIN_USER && p===SUPERADMIN_PASS){
+        formHost.querySelector('#saGo').disabled = true;
+        try{ await loadRegistryOrThrow(); } // ensure fresh data since init no longer blocks on this
+        catch(e){
+          console.error('superadmin registry load failed', e);
+          formHost.querySelector('#saErr').textContent = 'सर्वर से डेटा प्राप्त करने में समस्या: ' + (e && e.message ? e.message : e);
+          formHost.querySelector('#saGo').disabled = false;
+          return;
+        }
+        session={role:'superadmin'}; render();
+      }
+      else formHost.querySelector('#saErr').textContent = 'गलत username/password';
+    };
+  }
+
+  function showSchoolForm(){
+    ui.loginRole = 'school';
+    formHost.innerHTML = `
+      <h2 class="section-title">स्कूल लॉगिन</h2>
+      <p class="section-sub">एडमिन द्वारा दिया गया Login ID व Password डालें</p>
+      <div class="row"><div class="field"><label>Login Username</label><input id="scu"></div>
+      <div class="field"><label>Login Password</label><input id="scp" type="password"></div></div>
+      <button class="primary" id="scGo">लॉगिन करें</button>
+      <div id="scErr" style="color:var(--redpen);margin-top:10px;font-size:.85rem;"></div>`;
+    formHost.querySelector('#scGo').onclick = async ()=>{
+      const u = formHost.querySelector('#scu').value.trim(), p = formHost.querySelector('#scp').value;
+      const errBox = formHost.querySelector('#scErr');
+      errBox.textContent = '';
+      formHost.querySelector('#scGo').disabled = true;
+      try{ await loadRegistryOrThrow(); } // always fetch the latest data — another device/admin may have just created/changed this login
+      catch(e){
+        console.error('school login registry load failed', e);
+        errBox.textContent = 'सर्वर से डेटा प्राप्त करने में समस्या: ' + (e && e.message ? e.message : e);
+        formHost.querySelector('#scGo').disabled = false;
+        return;
+      }
+      const match = registry.find(s=> s.loginUsername===u && s.loginPassword===p);
+      if(!match){ errBox.textContent = 'गलत Login ID/Password'; formHost.querySelector('#scGo').disabled = false; return; }
+      await loadDB(match.id);
+      session = {role:'admin', superAdminMode:false};
+      ui.tab = 'classes'; ui.loginRole = null;
+      render();
+    };
+  }
+
+  function showTeacherForm(){
+    ui.loginRole = 'teacher';
+    formHost.innerHTML = `
+      <h2 class="section-title">अध्यापक लॉगिन</h2>
+      <p class="section-sub">स्कूल एडमिन द्वारा दिया गया username/password डालें</p>
+      <div class="row"><div class="field"><label>Username</label><input id="tu"></div>
+      <div class="field"><label>Password</label><input id="tp" type="password"></div></div>
+      <button class="primary" id="teachGo">लॉगिन करें</button>
+      <div id="teachErr" style="color:var(--redpen);margin-top:10px;font-size:.85rem;"></div>`;
+    formHost.querySelector('#teachGo').onclick = async ()=>{
+      const u = formHost.querySelector('#tu').value.trim(), p = formHost.querySelector('#tp').value;
+      const errBox = formHost.querySelector('#teachErr');
+      errBox.textContent = '';
+      formHost.querySelector('#teachGo').disabled = true;
+      try{ await loadTeacherIndexOrThrow(); } // always fetch the latest data — another device/admin may have just added this teacher
+      catch(e){
+        console.error('teacher login index load failed', e);
+        errBox.textContent = 'सर्वर से डेटा प्राप्त करने में समस्या: ' + (e && e.message ? e.message : e);
+        formHost.querySelector('#teachGo').disabled = false;
+        return;
+      }
+      const schoolId = teacherIndex[u];
+      if(!schoolId){ errBox.textContent = 'गलत username/password, या स्कूल एडमिन से जांच करें'; formHost.querySelector('#teachGo').disabled = false; return; }
+      const remoteDb = await fetchSchoolDB(schoolId);
+      const t = remoteDb ? remoteDb.teachers[u] : null;
+      if(!t || t.password!==p){
+        errBox.textContent = 'गलत username/password, या स्कूल एडमिन से जांच करें';
+        formHost.querySelector('#teachGo').disabled = false;
+        return;
+      }
+      await loadDB(schoolId);
+      session = {role:'teacher', username:u};
+      ui.loginRole = null;
+      render();
+    };
+  }
+
+  wrap.querySelector('#pickSuperAdmin').onclick = showSuperAdminForm;
+  wrap.querySelector('#pickSchool').onclick = showSchoolForm;
+  wrap.querySelector('#pickTeacher').onclick = showTeacherForm;
+
+  if(ui.loginRole==='superadmin') showSuperAdminForm();
+  else if(ui.loginRole==='teacher') showTeacherForm();
+  else showSchoolForm();
+  return wrap;
+}
+
+function renderSuperAdminDashboard(){
+  const wrap = el(`<div class="page"><div class="punch"></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;">
+      <div>
+        <h2 class="section-title" style="margin-bottom:2px;">सुपर एडमिन डैशबोर्ड — सभी स्कूल</h2>
+        <p class="section-sub" style="margin:0;">किसी भी स्कूल में पूर्ण एक्सेस के साथ प्रवेश करें, देखें व बदलें</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="ghost" id="saExportBtn">⭳ डेटा एक्सपोर्ट</button>
+        <button class="ghost" id="saImportBtn">⭱ डेटा इम्पोर्ट</button>
+        <input type="file" id="saImportFile" accept="application/json" style="display:none;">
+        <button class="${saState.tab==='add'?'ghost':'primary'}" id="saTabToggle">${saState.tab==='add' ? '← सभी स्कूल' : '+ नया स्कूल जोड़ें'}</button>
+      </div>
+    </div>
+    <div id="saBody" style="margin-top:20px;"></div>
+  </div>`);
+
+  wrap.querySelector('#saTabToggle').onclick = ()=>{
+    saState.tab = saState.tab==='add' ? 'list' : 'add';
+    render();
+  };
+  wrap.querySelector('#saExportBtn').onclick = async ()=>{
+    try{ await exportAllData(); }
+    catch(e){ console.error('export failed', e); alert('एक्सपोर्ट विफल रहा'); }
+  };
+  const importFileInput = wrap.querySelector('#saImportFile');
+  wrap.querySelector('#saImportBtn').onclick = ()=> importFileInput.click();
+  importFileInput.addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    if(!confirm('इम्पोर्ट करने पर मौजूदा सभी स्कूलों का डेटा नई फ़ाइल से बदल दिया जाएगा। जारी रखें?')) { importFileInput.value=''; return; }
+    try{
+      await importAllData(file);
+      alert('डेटा सफलतापूर्वक इम्पोर्ट हो गया');
+      render();
+    }catch(err){
+      console.error('import failed', err);
+      alert(err.message || 'इम्पोर्ट विफल रहा — फ़ाइल जाँचें');
+    }
+    importFileInput.value = '';
+  });
+
+  const body = wrap.querySelector('#saBody');
+  if(saState.tab==='add'){
+    body.appendChild(renderAddSchoolPanel());
+  } else {
+    body.appendChild(renderSchoolListPanel());
+  }
+  return wrap;
+}
+
+function renderAddSchoolPanel(){
+  const panel = el(`<div>
+    <h3 style="margin:0 0 4px;color:var(--chalk);">+ नया स्कूल जोड़ें</h3>
+    <p class="section-sub">स्कूल का नाम व Login ID/Password तय करें — यही जानकारी स्कूल को लॉगिन के लिए दें</p>
+    <div class="row">
+      <div class="field"><label>विद्यालय का नाम</label><input id="newSchName" placeholder="जैसे: राजकीय उच्च माध्यमिक विद्यालय"></div>
+      <div class="field"><label>पता (वैकल्पिक)</label><input id="newSchAddr" placeholder="गाँव/शहर, जिला, राज्य"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Login Username</label><input id="newSchAdminUser" placeholder="जैसे: school123"></div>
+      <div class="field"><label>Login Password</label><input id="newSchAdminPass" placeholder="जैसे: pass123"></div>
+      <div class="field" style="flex:0;"><button class="primary" id="createSchoolBtn">स्कूल बनाएं</button></div>
+    </div>
+    <div id="createSchoolErr" style="color:var(--redpen);font-size:.85rem;"></div>
+    <div id="createSchoolMsg" style="color:var(--chalk);font-size:.85rem;"></div>
+  </div>`);
+  panel.querySelector('#createSchoolBtn').onclick = async ()=>{
+    const name = panel.querySelector('#newSchName').value.trim();
+    const addr = panel.querySelector('#newSchAddr').value.trim();
+    const au = panel.querySelector('#newSchAdminUser').value.trim();
+    const ap = panel.querySelector('#newSchAdminPass').value.trim();
+    const errBox = panel.querySelector('#createSchoolErr');
+    const msgBox = panel.querySelector('#createSchoolMsg');
+    errBox.textContent = ''; msgBox.textContent = '';
+    if(!name){ errBox.textContent = 'कृपया स्कूल का नाम भरें'; return; }
+    if(!au || !ap){ errBox.textContent = 'कृपया Login Username व Password भरें'; return; }
+    if(registry.some(s=>(s.name||'').trim().toLowerCase()===name.toLowerCase())){
+      errBox.textContent = 'इस नाम से स्कूल पहले से मौजूद है'; return;
+    }
+    await createSchool(name, addr, au, ap);
+    saState.tab = 'list';
+    render();
+  };
+  return panel;
+}
+
+function renderSchoolListPanel(){
+  const panel = el(`<div>
+    <div class="row">
+      <div class="field"><label>स्कूल खोजें</label><input id="saSearchInput" placeholder="नाम, पता या Login ID से खोजें…" value="${saState.search||''}"></div>
+    </div>
+    <div class="card-grid" id="saSchoolGrid"></div>
+  </div>`);
+
+  function renderGrid(){
+    const grid = panel.querySelector('#saSchoolGrid');
+    grid.innerHTML = '';
+    const q = (saState.search||'').trim().toLowerCase();
+    const filtered = registry.filter(s=>{
+      if(!q) return true;
+      return (s.name||'').toLowerCase().includes(q) || (s.address||'').toLowerCase().includes(q) || (s.loginUsername||'').toLowerCase().includes(q);
+    });
+    if(registry.length===0){
+      grid.appendChild(el(`<div class="empty">अभी कोई स्कूल नहीं जोड़ा गया है। "+ नया स्कूल जोड़ें" से पहला स्कूल जोड़ें।</div>`));
+      return;
+    }
+    if(filtered.length===0){
+      grid.appendChild(el(`<div class="empty">कोई स्कूल इस खोज से मेल नहीं खाता।</div>`));
+      return;
+    }
+    filtered.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','hi')).forEach(s=>{
+      const card = el(`<div class="assign-card" style="cursor:default;">
+        <div class="cls">${s.name || 'नामरहित विद्यालय'}</div>
+        <div class="meta">${s.address ? s.address : ''}</div>
+        <div class="meta">Login ID: <span class="mono">${s.loginUsername||'—'}</span></div>
+        <div class="row" style="margin-top:14px;margin-bottom:0;">
+          <button class="ghost" style="flex:1;" data-enter>प्रवेश करें (पूर्ण एक्सेस)</button>
+          <button class="danger" data-del>हटाएं</button>
+        </div>
+      </div>`);
+      card.querySelector('[data-enter]').onclick = ()=> enterSchoolAsSuperAdmin(s.id);
+      card.querySelector('[data-del]').onclick = async ()=>{
+        if(!confirm(`क्या "${s.name}" स्कूल व उसका सारा डेटा हमेशा के लिए हटाना है?`)) return;
+        await deleteSchool(s.id);
+        renderGrid();
+      };
+      grid.appendChild(card);
+    });
+  }
+
+  panel.querySelector('#saSearchInput').addEventListener('input', (e)=>{
+    saState.search = e.target.value;
+    renderGrid();
+  });
+  renderGrid();
+  return panel;
+}
+
+// ---------- ADMIN ----------
+function renderAdminTab(){
+  if(ui.tab==='school') return renderSchool();
+  if(ui.tab==='classes') return renderClasses();
+  if(ui.tab==='exams') return renderExams();
+  if(ui.tab==='teachers') return renderTeachers();
+  if(ui.tab==='assign') return renderAssign();
+  if(ui.tab==='admit') return renderAdmitTab();
+  if(ui.tab==='reports') return renderReports();
+}
+
+function renderExams(){
+  const wrap = el(`<div class="page"><div class="punch"></div>
+    <h2 class="section-title">परीक्षाएँ (Exam Terms)</h2>
+    <p class="section-sub">जैसे: तिमाही, अर्धवार्षिक, वार्षिक — जरूरत अनुसार और जोड़ें/हटाएं</p>
+    <div class="row">
+      <div class="field"><label>नई परीक्षा का नाम</label><input id="newExam" placeholder="जैसे: मासिक परीक्षा"></div>
+      <div class="field" style="flex:0;"><button class="primary" id="addExamBtn">जोड़ें</button></div>
+    </div>
+    <table><thead><tr><th>क्रम</th><th>परीक्षा का नाम</th><th></th></tr></thead><tbody id="examRows"></tbody></table>
+  </div>`);
+  wrap.querySelector('#addExamBtn').onclick = async ()=>{
+    const name = wrap.querySelector('#newExam').value.trim();
+    if(!name) return;
+    if(db.exams.includes(name)){ alert('यह परीक्षा पहले से मौजूद है'); return; }
+    db.exams.push(name);
+    await saveDB(); render();
+  };
+  const rows = wrap.querySelector('#examRows');
+  db.exams.forEach((ex,i)=>{
+    const tr = el(`<tr><td class="mono">${i+1}</td><td>${ex}</td><td><button class="danger" data-rm="${i}">हटाएं</button></td></tr>`);
+    tr.querySelector('[data-rm]').onclick = async ()=>{
+      if(!confirm(`"${ex}" परीक्षा हटाएं? (इसके मार्क्स सुरक्षित रहेंगे पर दिखेंगे नहीं)`)) return;
+      db.exams.splice(i,1);
+      await saveDB(); render();
+    };
+    rows.appendChild(tr);
+  });
+  return wrap;
+}
+
+function readLogoImage(file){
+  return new Promise((resolve, reject)=>{
+    if(!file){ resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const maxDim = 220;
+        const scale = Math.min(1, maxDim/Math.max(img.width, img.height));
+        const w = Math.round(img.width*scale), h = Math.round(img.height*scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = ()=> reject(new Error('image load failed'));
+      img.src = e.target.result;
+    };
+    reader.onerror = ()=> reject(new Error('file read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderSchool(){
+  const wrap = el(`<div class="page"><div class="punch"></div>
+    <h2 class="section-title">विद्यालय जोड़ें</h2>
+    <p class="section-sub">विद्यालय का नाम, पता व लोगो यहाँ भरें — यह जानकारी प्रवेश पत्र व रिपोर्ट कार्ड पर उपयोग होगी</p>
+    <div class="row">
+      <div class="field"><label>विद्यालय का नाम</label><input id="schName" value="${db.school.name||''}" placeholder="जैसे: राजकीय उच्च माध्यमिक विद्यालय"></div>
+      <div class="field"><label>विद्यालय का पता (वैकल्पिक)</label><input id="schAddr" value="${db.school.address||''}" placeholder="गाँव/शहर, जिला, राज्य"></div>
+    </div>
+    <div class="row" style="align-items:center;">
+      <div class="field">
+        <label>विद्यालय का लोगो (वैकल्पिक)</label>
+        <input type="file" accept="image/*" id="schLogo">
+      </div>
+      <div class="field" style="flex:0;">
+        <div style="width:72px;height:72px;border:1px dashed var(--muted);border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;" id="schLogoPreview">
+          ${db.school.logo?`<img src="${db.school.logo}" style="width:100%;height:100%;object-fit:contain;">`:'<span style="color:var(--muted);font-size:.7rem;">कोई लोगो नहीं</span>'}
+        </div>
+      </div>
+      ${db.school.logo?'<div class="field" style="flex:0;"><button class="danger" id="schLogoRemove">लोगो हटाएं</button></div>':''}
+    </div>
+    <div class="row">
+      <div class="field" style="flex:0;"><button class="primary" id="schSave">विद्यालय की जानकारी सेव करें</button></div>
+      <span id="schSavedMsg" style="align-self:center;color:var(--chalk);font-size:.85rem;"></span>
+    </div>
+    <div class="wm-settings">
+      <h4>लॉगिन जानकारी (Login ID व Password)</h4>
+      <p class="section-sub" style="margin-bottom:12px;">यही Username/Password इस स्कूल के लॉगिन पेज पर उपयोग होगा — बदलने के बाद नया Username/Password ही मान्य होगा</p>
+      <div class="row">
+        <div class="field"><label>Login Username</label><input id="schLoginUser" value="${db.adminAuth.username||''}"></div>
+        <div class="field"><label>Login Password</label><input id="schLoginPass" value="${db.adminAuth.password||''}"></div>
+        <div class="field" style="flex:0;"><button class="primary" id="schCredSave">लॉगिन जानकारी सेव करें</button></div>
+      </div>
+      <div id="schCredErr" style="color:var(--redpen);font-size:.85rem;"></div>
+      <div id="schCredMsg" style="color:var(--chalk);font-size:.85rem;"></div>
+    </div>
+  </div>`);
+
+  let pendingLogo = undefined; // undefined = no change, null = remove, dataURL = new
+  wrap.querySelector('#schLogo').addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    try{
+      pendingLogo = await readLogoImage(file);
+      wrap.querySelector('#schLogoPreview').innerHTML = `<img src="${pendingLogo}" style="width:100%;height:100%;object-fit:contain;">`;
+    }catch(err){ console.error('logo processing failed', err); }
+  });
+  const removeBtn = wrap.querySelector('#schLogoRemove');
+  if(removeBtn){
+    removeBtn.onclick = ()=>{
+      pendingLogo = null;
+      wrap.querySelector('#schLogoPreview').innerHTML = '<span style="color:var(--muted);font-size:.7rem;">कोई लोगो नहीं</span>';
+      removeBtn.remove();
+    };
+  }
+
+  wrap.querySelector('#schSave').onclick = async ()=>{
+    db.school.name = wrap.querySelector('#schName').value.trim();
+    db.school.address = wrap.querySelector('#schAddr').value.trim();
+    if(pendingLogo === null) delete db.school.logo;
+    else if(pendingLogo) db.school.logo = pendingLogo;
+    await saveDB();
+    await syncRegistryEntryForCurrentSchool();
+    const msg = wrap.querySelector('#schSavedMsg');
+    msg.textContent = 'सेव हो गया ✓';
+    setTimeout(()=>{ if(msg) msg.textContent=''; }, 2000);
+  };
+
+  wrap.querySelector('#schCredSave').onclick = async ()=>{
+    const errBox = wrap.querySelector('#schCredErr');
+    const msgBox = wrap.querySelector('#schCredMsg');
+    errBox.textContent=''; msgBox.textContent='';
+    const u = wrap.querySelector('#schLoginUser').value.trim();
+    const p = wrap.querySelector('#schLoginPass').value.trim();
+    if(!u || !p){ errBox.textContent = 'Username व Password खाली नहीं हो सकते'; return; }
+    if(registry.some(s=> s.id!==currentSchoolId && s.loginUsername===u)){
+      errBox.textContent = 'यह Login Username किसी और स्कूल में पहले से उपयोग हो रहा है, कृपया दूसरा चुनें'; return;
+    }
+    db.adminAuth = {username:u, password:p};
+    await saveDB();
+    await syncRegistryEntryForCurrentSchool();
+    msgBox.textContent = 'लॉगिन जानकारी सेव हो गई ✓';
+    setTimeout(()=>{ if(msgBox) msgBox.textContent=''; }, 2500);
+  };
+
+  return wrap;
+}
+
+function renderClasses(){
+  const wrap = el(`<div class="page"><div class="punch"></div>
+    <div class="row" style="align-items:flex-start;justify-content:space-between;flex-wrap:wrap;">
+      <div>
+        <h2 class="section-title" style="margin-bottom:2px;">कक्षा व छात्र जोड़ें</h2>
+        <p class="section-sub" style="margin:0;">पहले कक्षा बनाएं, फिर उसमें छात्र जोड़ें</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="ghost" id="stuExportBtn">⭳ एक्सेल में एक्सपोर्ट करें</button>
+        <button class="ghost" id="stuImportBtn">⭱ एक्सेल से इम्पोर्ट करें</button>
+        <input type="file" id="stuImportFile" accept=".xlsx,.xls" style="display:none;">
+      </div>
+    </div>
+    <div id="stuImportMsg" style="color:var(--redpen);font-size:.85rem;margin-top:6px;"></div>
+    <div class="row"><div class="field"><label>नई कक्षा का नाम</label><input id="newClass" placeholder="जैसे: 6-A"></div>
+    <div class="field" style="flex:0;"><button class="primary" id="addClassBtn">कक्षा जोड़ें</button></div></div>
+    <div id="classList"></div></div>`);
+  const STU_COLS = ['कक्षा','रोल नं.','नाम','पिता का नाम','माता का नाम'];
+  wrap.querySelector('#stuExportBtn').onclick = ()=>{
+    const rows = [STU_COLS];
+    Object.keys(db.classes).forEach(cname=>{
+      (db.classes[cname].students||[]).forEach(s=>{
+        rows.push([cname, s.roll||'', s.name||'', s.father||s.guardian||'', s.mother||'']);
+      });
+    });
+    const wsData = rows.length>1 ? rows : [STU_COLS];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'छात्र');
+    XLSX.writeFile(wb, `${db.school.name||'school'}-students.xlsx`);
+  };
+  const stuImportFile = wrap.querySelector('#stuImportFile');
+  const stuImportMsg = wrap.querySelector('#stuImportMsg');
+  wrap.querySelector('#stuImportBtn').onclick = ()=> stuImportFile.click();
+  stuImportFile.addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    stuImportMsg.style.color = 'var(--redpen)'; stuImportMsg.textContent = '';
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if(rows.length===0){ stuImportMsg.textContent = 'फ़ाइल में कोई डेटा नहीं मिला'; return; }
+      let added = 0, skipped = 0;
+      rows.forEach(r=>{
+        const cname = String(r['कक्षा']||'').trim();
+        const name = String(r['नाम']||'').trim();
+        if(!cname || !name){ skipped++; return; }
+        if(!db.classes[cname]) db.classes[cname] = {students:[]};
+        const roll = String(r['रोल नं.']||'').trim() || String(db.classes[cname].students.length+1);
+        const father = String(r['पिता का नाम']||'').trim();
+        const mother = String(r['माता का नाम']||'').trim();
+        db.classes[cname].students.push({id:'s'+Date.now()+Math.random().toString(36).slice(2,6), name, roll, father, mother, photo:null});
+        added++;
+      });
+      await saveDB();
+      stuImportMsg.style.color = 'var(--chalk)';
+      stuImportMsg.textContent = `${added} छात्र जोड़े गए${skipped?`, ${skipped} पंक्तियाँ अधूरी होने के कारण छोड़ी गईं`:''}`;
+      render();
+    }catch(err){
+      console.error('student import failed', err);
+      stuImportMsg.textContent = 'फ़ाइल पढ़ने में समस्या — सही फॉर्मेट जाँचें (कक्षा, रोल नं., नाम, पिता का नाम, माता का नाम)';
+    }
+    stuImportFile.value = '';
+  });
+  wrap.querySelector('#addClassBtn').onclick = async ()=>{
+    const name = wrap.querySelector('#newClass').value.trim();
+    if(!name) return;
+    if(!db.classes[name]) db.classes[name]={students:[]};
+    await saveDB(); render();
+  };
+  const listHost = wrap.querySelector('#classList');
+  const classNames = Object.keys(db.classes);
+  if(classNames.length===0) listHost.appendChild(el(`<div class="empty">अभी कोई कक्षा नहीं बनी है</div>`));
+  classNames.forEach(cname=>{
+    const section = el(`<div style="margin-top:22px;border-top:1px solid var(--line);padding-top:16px;">
+      <div class="row" style="align-items:center;"><h3 style="margin:0;flex:1;">कक्षा: ${cname}</h3>
+      <button class="danger" data-del-class="${cname}">कक्षा हटाएं</button></div>
+      <div class="row"><div class="field"><label>छात्र का नाम</label><input class="sname" data-cls="${cname}" placeholder="छात्र का नाम"></div>
+      <div class="field"><label>रोल नंबर</label><input class="sroll" data-cls="${cname}" placeholder="रोल नं."></div>
+      <div class="field"><label>पिता का नाम (वैकल्पिक)</label><input class="sfather" data-cls="${cname}" placeholder="पिता का नाम"></div>
+      <div class="field"><label>माता का नाम (वैकल्पिक)</label><input class="smother" data-cls="${cname}" placeholder="माता का नाम"></div>
+      <div class="field"><label>फोटो (वैकल्पिक)</label><input type="file" accept="image/*" class="sphoto" data-cls="${cname}"></div>
+      <div class="field" style="flex:0;"><button class="ghost addStu" data-cls="${cname}">छात्र जोड़ें</button></div></div>
+      <table><thead><tr><th>फोटो</th><th>रोल नं.</th><th>नाम</th><th>पिता का नाम</th><th>माता का नाम</th><th></th></tr></thead><tbody>
+      ${db.classes[cname].students.map(s=>`<tr><td>${s.photo?`<img class="stu-thumb" src="${s.photo}">`:'<span style="color:var(--muted);">—</span>'}</td><td class="mono">${s.roll}</td><td>${s.name}</td><td>${s.father||s.guardian||'<span style="color:var(--muted);">—</span>'}</td><td>${s.mother||'<span style="color:var(--muted);">—</span>'}</td>
+      <td><button class="danger" data-del-stu="${cname}::${s.id}">हटाएं</button></td></tr>`).join('') || `<tr><td colspan="6" style="text-align:center;color:var(--muted);">कोई छात्र नहीं</td></tr>`}
+      </tbody></table></div>`);
+    section.querySelector('.addStu').onclick = async ()=>{
+      const nameInp = section.querySelector(`.sname[data-cls="${cname}"]`);
+      const rollInp = section.querySelector(`.sroll[data-cls="${cname}"]`);
+      const fatherInp = section.querySelector(`.sfather[data-cls="${cname}"]`);
+      const motherInp = section.querySelector(`.smother[data-cls="${cname}"]`);
+      const photoInp = section.querySelector(`.sphoto[data-cls="${cname}"]`);
+      const name = nameInp.value.trim();
+      const roll = rollInp.value.trim() || String(db.classes[cname].students.length+1);
+      const father = fatherInp.value.trim();
+      const mother = motherInp.value.trim();
+      if(!name) return;
+      let photo = null;
+      if(photoInp.files && photoInp.files[0]){
+        try{ photo = await readAndCompressImage(photoInp.files[0]); }
+        catch(e){ console.error('photo processing failed', e); }
+      }
+      db.classes[cname].students.push({id:'s'+Date.now()+Math.random().toString(36).slice(2,6), name, roll, father, mother, photo});
+      await saveDB(); render();
+    };
+    section.querySelector('[data-del-class]').onclick = async ()=>{
+      if(!confirm(`क्या "${cname}" कक्षा को हटाना है?`)) return;
+      delete db.classes[cname]; await saveDB(); render();
+    };
+    section.querySelectorAll('[data-del-stu]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const [cls, sid] = btn.dataset.delStu.split('::');
+        db.classes[cls].students = db.classes[cls].students.filter(s=>s.id!==sid);
+        await saveDB(); render();
+      };
+    });
+    listHost.appendChild(section);
+  });
+  return wrap;
+}
+
+function renderTeachers(){
+  const wrap = el(`<div class="page"><div class="punch"></div>
+    <h2 class="section-title">अध्यापक बनाएं</h2>
+    <p class="section-sub">हर अध्यापक को एक username व password दें</p>
+    <div class="row">
+      <div class="field"><label>पूरा नाम</label><input id="tName"></div>
+      <div class="field"><label>Username</label><input id="tUser"></div>
+      <div class="field"><label>Password</label><input id="tPass"></div>
+      <div class="field" style="flex:0;"><button class="primary" id="addTeacherBtn">जोड़ें</button></div>
+    </div>
+    <table><thead><tr><th>नाम</th><th>Username</th><th>Password</th><th>Assignments</th><th></th></tr></thead>
+    <tbody id="teacherRows"></tbody></table></div>`);
+  wrap.querySelector('#addTeacherBtn').onclick = async ()=>{
+    const name = wrap.querySelector('#tName').value.trim();
+    const user = wrap.querySelector('#tUser').value.trim();
+    const pass = wrap.querySelector('#tPass').value.trim();
+    if(!name||!user||!pass) return;
+    if(db.teachers[user]){ alert('यह username पहले से मौजूद है'); return; }
+    if(teacherIndex[user] && teacherIndex[user]!==currentSchoolId){ alert('यह username किसी और स्कूल में पहले से उपयोग हो रहा है, कृपया दूसरा username चुनें'); return; }
+    db.teachers[user] = {name, password:pass};
+    db.assignments[user] = db.assignments[user] || [];
+    await saveDB();
+    teacherIndex[user] = currentSchoolId;
+    await saveTeacherIndex();
+    render();
+  };
+  const rows = wrap.querySelector('#teacherRows');
+  const usernames = Object.keys(db.teachers);
+  if(usernames.length===0) rows.appendChild(el(`<tr><td colspan="5" style="text-align:center;color:var(--muted);">कोई अध्यापक नहीं जोड़ा गया</td></tr>`));
+  usernames.forEach(u=>{
+    const t = db.teachers[u];
+    const assigns = (db.assignments[u]||[]);
+    const tr = el(`<tr><td>${t.name}</td><td class="mono">${u}</td><td class="mono">${t.password}</td>
+      <td>${assigns.length ? assigns.map(a=>`${a.cls}/${a.subject}`).join(', ') : '<span style="color:var(--muted);">कोई नहीं</span>'}</td>
+      <td><button class="danger" data-del-t="${u}">हटाएं</button></td></tr>`);
+    tr.querySelector('[data-del-t]').onclick = async ()=>{
+      if(!confirm(`अध्यापक "${t.name}" को हटाना है?`)) return;
+      delete db.teachers[u]; delete db.assignments[u];
+      await saveDB();
+      delete teacherIndex[u];
+      await saveTeacherIndex();
+      render();
+    };
+    rows.appendChild(tr);
+  });
+  return wrap;
+}
+
+function renderAssign(){
+  const wrap = el(`<div class="page"><div class="punch"></div>
+    <h2 class="section-title">कक्षा + विषय अध्यापक को असाइन करें</h2>
+    <p class="section-sub">विषय का प्रकार चुनें — सामान्य, Theory+Practical वाला (जैसे विज्ञान), या दो प्रश्नपत्र वाला (जैसे हिंदी I/II)</p>
+    <div class="row">
+      <div class="field"><label>अध्यापक</label><select id="asgTeacher"></select></div>
+      <div class="field"><label>कक्षा</label><select id="asgClass"></select></div>
+      <div class="field"><label>विषय का नाम</label><input id="asgSubject" placeholder="जैसे: विज्ञान"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>विषय का प्रकार</label>
+        <select id="asgType">
+          <option value="single">सामान्य (एक पेपर)</option>
+          <option value="practical">Theory + Practical</option>
+          <option value="dual">दो प्रश्नपत्र (Paper I / Paper II)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" id="typeFields"></div>
+    <button class="primary" id="asgBtn">असाइन करें</button>
+    <table style="margin-top:22px;"><thead><tr><th>अध्यापक</th><th>कक्षा</th><th>विषय</th><th>घटक (Components)</th><th></th></tr></thead>
+    <tbody id="asgRows"></tbody></table></div>`);
+
+  const teacherSel = wrap.querySelector('#asgTeacher');
+  const classSel = wrap.querySelector('#asgClass');
+  Object.keys(db.teachers).forEach(u=> teacherSel.appendChild(el(`<option value="${u}">${db.teachers[u].name} (${u})</option>`)));
+  Object.keys(db.classes).forEach(c=> classSel.appendChild(el(`<option value="${c}">${c}</option>`)));
+  if(Object.keys(db.teachers).length===0 || Object.keys(db.classes).length===0){
+    wrap.insertBefore(el(`<div class="note">पहले "अध्यापक" व "कक्षा व छात्र" टैब में डेटा जोड़ें</div>`), wrap.querySelector('.row'));
+  }
+
+  const typeSel = wrap.querySelector('#asgType');
+  const typeFields = wrap.querySelector('#typeFields');
+  function drawTypeFields(){
+    const type = typeSel.value;
+    if(type==='single'){
+      typeFields.innerHTML = `<div class="field"><label>अधिकतम अंक</label><input id="maxSingle" type="number" value="100"></div>`;
+    } else if(type==='practical'){
+      typeFields.innerHTML = `
+        <div class="field"><label>सिद्धांत (Theory) अधिकतम अंक</label><input id="maxTheory" type="number" value="80"></div>
+        <div class="field"><label>प्रयोगात्मक (Practical) अधिकतम अंक</label><input id="maxPractical" type="number" value="20"></div>`;
+    } else {
+      typeFields.innerHTML = `
+        <div class="field"><label>प्रथम प्रश्नपत्र (Paper I) अधिकतम अंक</label><input id="maxP1" type="number" value="50"></div>
+        <div class="field"><label>द्वितीय प्रश्नपत्र (Paper II) अधिकतम अंक</label><input id="maxP2" type="number" value="50"></div>`;
+    }
+  }
+  typeSel.onchange = drawTypeFields;
+  drawTypeFields();
+
+  wrap.querySelector('#asgBtn').onclick = async ()=>{
+    const t = teacherSel.value, c = classSel.value;
+    const subject = wrap.querySelector('#asgSubject').value.trim();
+    if(!t||!c||!subject) return;
+    const type = typeSel.value;
+    let components = [];
+    if(type==='single'){
+      const max = parseFloat(wrap.querySelector('#maxSingle').value)||100;
+      components = [{name:MAIN_KEY, max}];
+    } else if(type==='practical'){
+      const th = parseFloat(wrap.querySelector('#maxTheory').value)||0;
+      const pr = parseFloat(wrap.querySelector('#maxPractical').value)||0;
+      components = [{name:'सिद्धांत (Theory)', max:th}, {name:'प्रयोगात्मक (Practical)', max:pr}];
+    } else {
+      const p1 = parseFloat(wrap.querySelector('#maxP1').value)||0;
+      const p2 = parseFloat(wrap.querySelector('#maxP2').value)||0;
+      components = [{name:'प्रथम प्रश्नपत्र (Paper I)', max:p1}, {name:'द्वितीय प्रश्नपत्र (Paper II)', max:p2}];
+    }
+    db.assignments[t] = db.assignments[t] || [];
+    if(db.assignments[t].some(a=>a.cls===c && a.subject===subject)){ alert('यह विषय इस कक्षा के लिए पहले से असाइन है'); return; }
+    db.assignments[t].push({cls:c, subject, components});
+    await saveDB(); render();
+  };
+
+  const rows = wrap.querySelector('#asgRows');
+  let any=false;
+  Object.keys(db.assignments).forEach(u=>{
+    (db.assignments[u]||[]).forEach((a, idx)=>{
+      any=true;
+      const compDesc = a.components.map(c=> c.name===MAIN_KEY ? `कुल: ${c.max}` : `${c.name}: ${c.max}`).join(' + ');
+      const tr = el(`<tr><td>${db.teachers[u]?db.teachers[u].name:u}</td><td>${a.cls}</td><td>${a.subject}</td>
+        <td class="mono" style="font-size:.78rem;">${compDesc}</td>
+        <td><button class="danger" data-rm="${u}::${idx}">हटाएं</button></td></tr>`);
+      tr.querySelector('[data-rm]').onclick = async ()=>{
+        db.assignments[u].splice(idx,1);
+        await saveDB(); render();
+      };
+      rows.appendChild(tr);
+    });
+  });
+  if(!any) rows.appendChild(el(`<tr><td colspan="5" style="text-align:center;color:var(--muted);">कोई असाइनमेंट नहीं</td></tr>`));
+  return wrap;
+}
+
+// ---- shared helper: subjects list for a class (from assignments) ----
+function subjectsForClass(cls){
+  const subs = [];
+  Object.values(db.assignments).flat().forEach(a=>{
+    if(a.cls===cls && !subs.some(s=>s.subject===a.subject)) subs.push(a);
+  });
+  return subs;
+}
+function componentValue(exam, cls, subject, compName, studentId){
+  return (((((db.marks[exam]||{})[cls]||{})[subject]||{})[compName]||{})[studentId]);
+}
+function subjectResult(exam, cls, subject, components, studentId){
+  let obtained=0, max=0, any=false;
+  components.forEach(c=>{
+    const v = componentValue(exam, cls, subject, c.name, studentId);
+    if(v!==undefined && v!==null && v!==''){ obtained+=parseFloat(v); max+=c.max; any=true; }
+  });
+  return {obtained, max, any};
+}
+
+function fitReportCardsToPage(host){
+  // Shrinks each report card's content so it always fits on a single A4 page,
+  // no matter how many exams/subjects it contains — never spills to a 2nd sheet.
+  requestAnimationFrame(()=>{
+    host.querySelectorAll('.report-card').forEach(card=>{
+      const inner = card.querySelector('.rc-inner');
+      if(!inner) return;
+      inner.style.transform = 'scale(1)';
+      const availH = card.clientHeight;
+      const neededH = inner.scrollHeight;
+      if(neededH > availH && neededH > 0){
+        const scale = Math.max(0.4, availH / neededH * 0.99);
+        inner.style.transform = `scale(${scale})`;
+      }
+    });
+  });
+}
+function renderReports(){
+  const wrap = el(`<div class="page"><div class="punch"></div>
+    <h2 class="section-title">रिपोर्ट कार्ड</h2>
+    <p class="section-sub">कक्षा व परीक्षा चुनें — चाहें तो सभी परीक्षाओं का वार्षिक परिणाम एक साथ भी बनाएं</p>
+    <div class="row">
+      <div class="field"><label>कक्षा चुनें</label><select id="repClass"></select></div>
+      <div class="field"><label>परीक्षा चुनें</label><select id="repExam"></select></div>
+      <div class="field" style="flex:0;"><button class="ghost no-print" id="printBtn">प्रिंट करें</button></div>
+      <div class="field" style="flex:0;"><button class="primary no-print" id="pdfBtn">⭳ PDF डाउनलोड करें</button></div>
+    </div>
+    <div id="repHost"></div></div>`);
+
+  const classSel = wrap.querySelector('#repClass');
+  const examSel = wrap.querySelector('#repExam');
+  Object.keys(db.classes).forEach(c=> classSel.appendChild(el(`<option value="${c}">${c}</option>`)));
+  db.exams.forEach(ex=> examSel.appendChild(el(`<option value="${ex}">${ex}</option>`)));
+  examSel.appendChild(el(`<option value="__all__">— सभी परीक्षाएँ + वार्षिक परिणाम (एक साथ) —</option>`));
+  wrap.querySelector('#printBtn').onclick = ()=> window.print();
+  wrap.querySelector('#pdfBtn').onclick = async ()=>{
+    const host = wrap.querySelector('#repHost');
+    if(!host.querySelector('.report-card')){ alert('कोई रिपोर्ट कार्ड उपलब्ध नहीं है'); return; }
+    const btn = wrap.querySelector('#pdfBtn');
+    const origText = btn.textContent;
+    btn.disabled = true; btn.textContent = 'PDF बन रहा है…';
+    try{
+      const cls = classSel.value, examChoice = examSel.value;
+      const examLabel = examChoice==='__all__' ? 'सभी-परीक्षाएँ' : examChoice;
+      await html2pdf().set({
+        margin:0,
+        filename: `report-card-${cls}-${examLabel}.pdf`,
+        image:{type:'jpeg', quality:0.98},
+        html2canvas:{scale:2, useCORS:true},
+        jsPDF:{unit:'mm', format:'a4', orientation:'portrait'},
+        pagebreak:{mode:['css','avoid-all']}
+      }).from(host).save();
+    }catch(e){
+      console.error('report card PDF export failed', e);
+      alert('PDF बनाने में समस्या आई, कृपया पुनः प्रयास करें');
+    } finally {
+      btn.disabled = false; btn.textContent = origText;
+    }
+  };
+
+  function subjectTableRows(exam, cls, subjects, sid){
+    return subjects.map(sub=>{
+      const r = subjectResult(exam, cls, sub.subject, sub.components, sid);
+      return `<tr><td>${sub.subject}</td><td class="num mono">${r.any? r.obtained : '—'}</td><td class="num mono">${r.any? r.max : '—'}</td></tr>`;
+    }).join('');
+  }
+
+  function draw(){
+    const cls = classSel.value;
+    const examChoice = examSel.value;
+    const host = wrap.querySelector('#repHost');
+    host.innerHTML='';
+    if(!cls){ host.appendChild(el(`<div class="empty">कोई कक्षा उपलब्ध नहीं</div>`)); return; }
+    const students = db.classes[cls].students;
+    const subjects = subjectsForClass(cls);
+    if(students.length===0){ host.appendChild(el(`<div class="empty">इस कक्षा में कोई छात्र नहीं है</div>`)); return; }
+    if(subjects.length===0){ host.appendChild(el(`<div class="empty">इस कक्षा के लिए कोई विषय असाइन नहीं है</div>`)); return; }
+
+    const schoolName = (db.school && db.school.name) ? db.school.name : 'हमारा विद्यालय';
+    const schoolAddr = (db.school && db.school.address) ? db.school.address : '';
+    const schoolLogo = (db.school && db.school.logo) ? db.school.logo : '';
+    students.forEach(s=>{
+      const card = el(`<div class="report-card"></div>`);
+      const inner = el(`<div class="rc-inner"></div>`);
+      card.appendChild(inner);
+      inner.appendChild(el(`<div class="rc-header">
+        ${schoolLogo?`<img class="rc-logo" src="${schoolLogo}">`:''}
+        <div class="rc-school-name">${schoolName}</div>
+        ${schoolAddr?`<div class="rc-school-addr">${schoolAddr}</div>`:''}
+        <div class="rc-title">रिपोर्ट कार्ड · REPORT CARD</div>
+      </div>`));
+      inner.appendChild(el(`<h3>${s.name}</h3>`));
+      inner.appendChild(el(`<div class="roll">रोल नं.: ${s.roll} · कक्षा: ${cls}</div>`));
+
+      if(examChoice==='__all__'){
+        let grandObt=0, grandMax=0;
+        db.exams.forEach(exam=>{
+          let total=0,maxTotal=0;
+          subjects.forEach(sub=>{
+            const r = subjectResult(exam, cls, sub.subject, sub.components, s.id);
+            if(r.any){ total+=r.obtained; maxTotal+=r.max; }
+          });
+          grandObt+=total; grandMax+=maxTotal;
+          const pct = maxTotal>0 ? (total/maxTotal*100) : 0;
+          const [gr, grClass] = grade(pct);
+          const block = el(`<div class="exam-block">
+            <h4>${exam}</h4>
+            <table><thead><tr><th>विषय</th><th class="num">प्राप्तांक</th><th class="num">पूर्णांक</th></tr></thead>
+            <tbody>${subjectTableRows(exam, cls, subjects, s.id)}</tbody></table>
+            <div class="summary"><div>कुल <b>${total} / ${maxTotal}</b></div>
+            <div>प्रतिशत <b>${maxTotal>0?pct.toFixed(1):'0.0'}%</b></div>
+            <div>ग्रेड <b class="${grClass}">${maxTotal>0?gr:'—'}</b></div></div>
+          </div>`);
+          inner.appendChild(block);
+        });
+        const gpct = grandMax>0 ? (grandObt/grandMax*100) : 0;
+        const [ggr, ggrClass] = grade(gpct);
+        inner.appendChild(el(`<div class="annual-block">
+          <h4>वार्षिक परिणाम (सभी परीक्षाओं का संयुक्त)</h4>
+          <div class="summary"><div>कुल प्राप्तांक <b>${grandObt} / ${grandMax}</b></div>
+          <div>कुल प्रतिशत <b>${grandMax>0?gpct.toFixed(1):'0.0'}%</b></div>
+          <div>अंतिम ग्रेड <b class="${ggrClass}">${grandMax>0?ggr:'—'}</b></div></div>
+        </div>`));
+      } else {
+        const exam = examChoice;
+        let total=0,maxTotal=0;
+        subjects.forEach(sub=>{
+          const r = subjectResult(exam, cls, sub.subject, sub.components, s.id);
+          if(r.any){ total+=r.obtained; maxTotal+=r.max; }
+        });
+        const pct = maxTotal>0 ? (total/maxTotal*100) : 0;
+        const [gr, grClass] = grade(pct);
+        inner.appendChild(el(`<table><thead><tr><th>विषय</th><th class="num">प्राप्तांक</th><th class="num">पूर्णांक</th></tr></thead>
+          <tbody>${subjectTableRows(exam, cls, subjects, s.id)}</tbody></table>`));
+        inner.appendChild(el(`<div class="summary"><div>कुल अंक <b>${total} / ${maxTotal}</b></div>
+          <div>प्रतिशत <b>${maxTotal>0?pct.toFixed(1):'0.0'}%</b></div>
+          <div>ग्रेड <b class="${grClass}">${maxTotal>0?gr:'—'}</b></div></div>`));
+      }
+      host.appendChild(card);
+    });
+    fitReportCardsToPage(host);
+  }
+  classSel.onchange = draw; examSel.onchange = draw;
+  setTimeout(draw, 0);
+  return wrap;
+}
+
+// ---------- ADMIT CARD helpers ----------
+function hindiDay(dateStr){
+  if(!dateStr) return '—';
+  const days = ['रविवार','सोमवार','मंगलवार','बुधवार','गुरुवार','शुक्रवार','शनिवार'];
+  const d = new Date(dateStr+'T00:00:00');
+  if(isNaN(d)) return '—';
+  return days[d.getDay()];
+}
+function formatDateDMY(dateStr){
+  if(!dateStr) return '—';
+  const d = new Date(dateStr+'T00:00:00');
+  if(isNaN(d)) return '—';
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+function formatTime12(t){
+  if(!t) return '—';
+  const parts = t.split(':');
+  const h = parseInt(parts[0],10), m = parseInt(parts[1],10);
+  const period = h>=12 ? 'PM':'AM';
+  let hh = h%12; if(hh===0) hh=12;
+  return `${hh}:${String(m).padStart(2,'0')} ${period}`;
+}
+
+// ---------- ADMIT CARD (Admin) ----------
+function renderAdmitTab(){
+  const wrap = el(`<div class="page"><div class="punch"></div>
+    <h2 class="section-title">प्रवेश पत्र (Admit Card)</h2>
+    <p class="section-sub">पहले विद्यालय का नाम व परीक्षा तालिका (कब कौन सा विषय) भरें, फिर छात्रों के प्रवेश पत्र चुनकर प्रिंट करें — हर प्रवेश पत्र एक पूरे A4 पेज पर फिट होगा</p>
+    <div class="row">
+      <div class="field" style="flex:1 1 100%;"><label>अतिरिक्त निर्देश (वैकल्पिक — हर पंक्ति में एक नया निर्देश लिखें, ये पहले से मौजूद निर्देशों के साथ जुड़ जाएंगे)</label>
+        <textarea id="acCustomInstr" rows="3" placeholder="जैसे: परीक्षा शुल्क की रसीद साथ लाएं">${(db.customInstructions||[]).join('\n')}</textarea>
+      </div>
+      <div class="field" style="flex:0;"><button class="ghost" id="acInstrSave">निर्देश सेव करें</button></div>
+    </div>
+    <div class="wm-settings">
+      <h4>वॉटरमार्क सेटिंग्स (Watermark Settings)</h4>
+      <div class="row" style="align-items:center;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--muted);">
+          <input type="checkbox" id="wmEnabled" ${db.watermark.enabled!==false?'checked':''}> प्रवेश पत्र पर वॉटरमार्क दिखाएं
+        </label>
+      </div>
+      <div class="row">
+        <div class="field"><label>वॉटरमार्क डिज़ाइन (स्टाइल)</label>
+          <select id="wmStyle">
+            <option value="rings">संकेंद्रित वृत्त — केंद्र से शुरू, बाहर बड़ा (गोल आकार)</option>
+            <option value="spiral">सर्पिल (Spiral) — केंद्र से शुरू होकर बाहर घूमते हुए बड़ा</option>
+            <option value="single">केंद्रीय बड़ा टेक्स्ट (एक बड़ा तिरछा नाम)</option>
+            <option value="diagonal">तिरछा दोहराव (पूरे पेज पर टाइल)</option>
+            <option value="grid">सीधा ग्रिड दोहराव (पूरे पेज पर)</option>
+            <option value="horizontal">सीधी क्षैतिज पंक्तियाँ (Straight Rows)</option>
+            <option value="vertical">सीधी ऊर्ध्वाधर पट्टियाँ (Straight Columns)</option>
+          </select>
+        </div>
+        <div class="field"><label>रंग</label><input type="color" id="wmColor" value="${db.watermark.color||'#2F5D50'}" style="height:38px;padding:2px;"></div>
+        <div class="field"><label>गहरापन (Opacity): <span id="wmOpacityVal"></span></label>
+          <input type="range" id="wmOpacity" min="5" max="35" step="1" style="padding:8px 0;">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>घनत्व (Density) — विरल ↔ घना: <span id="wmDensityVal"></span></label>
+          <input type="range" id="wmDensity" min="1" max="10" step="1" style="padding:8px 0;">
+        </div>
+        <div class="field"><label>मोटाई (Thickness)</label>
+          <select id="wmThickness">
+            <option value="thin">पतला (Thin)</option>
+            <option value="normal">सामान्य (Normal)</option>
+            <option value="bold">मोटा (Bold)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>टेक्स्ट साइज़ (Font Size): <span id="wmFontSizeVal"></span></label>
+          <input type="range" id="wmFontSize" min="10" max="200" step="10" style="padding:8px 0;">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex:1 1 100%;"><label>वॉटरमार्क टेक्स्ट (खाली छोड़ें तो विद्यालय का नाम अपने-आप उपयोग होगा)</label>
+          <input id="wmText" value="${db.watermark.text||''}" placeholder="जैसे: नमूना / SAMPLE / विद्यालय का नाम">
+        </div>
+        <div class="field" style="flex:0;"><button class="ghost" id="wmSave">वॉटरमार्क सेव करें</button></div>
+      </div>
+      <div class="wm-preview-wrap">
+        <div class="wm-preview" id="wmPreview"></div>
+        <span class="wm-preview-label">पूर्वावलोकन (Preview)</span>
+      </div>
+    </div>
+    <div class="row" style="margin-top:6px;">
+      <div class="field"><label>कक्षा चुनें</label><select id="acClass"></select></div>
+      <div class="field"><label>परीक्षा चुनें</label><select id="acExam"></select></div>
+    </div>
+    <div id="acScheduleHost"></div>
+    <div id="acStudentHost" style="margin-top:24px;"></div>
+  </div>`);
+
+  wrap.querySelector('#acInstrSave').onclick = async ()=>{
+    const raw = wrap.querySelector('#acCustomInstr').value;
+    db.customInstructions = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+    await saveDB();
+  };
+
+  // ---- Watermark settings wiring ----
+  const wmStyleSel = wrap.querySelector('#wmStyle');
+  const wmColorInp = wrap.querySelector('#wmColor');
+  const wmOpacityInp = wrap.querySelector('#wmOpacity');
+  const wmOpacityVal = wrap.querySelector('#wmOpacityVal');
+  const wmDensityInp = wrap.querySelector('#wmDensity');
+  const wmDensityVal = wrap.querySelector('#wmDensityVal');
+  const wmThicknessSel = wrap.querySelector('#wmThickness');
+  const wmFontSizeInp = wrap.querySelector('#wmFontSize');
+  const wmFontSizeVal = wrap.querySelector('#wmFontSizeVal');
+  const wmTextInp = wrap.querySelector('#wmText');
+  const wmEnabledChk = wrap.querySelector('#wmEnabled');
+  const wmPreview = wrap.querySelector('#wmPreview');
+  wmStyleSel.value = db.watermark.style || 'rings';
+  wmOpacityInp.value = Math.round((db.watermark.opacity!=null?db.watermark.opacity:0.14)*100);
+  wmDensityInp.value = db.watermark.density!=null ? db.watermark.density : 6;
+  wmThicknessSel.value = db.watermark.thickness || 'normal';
+  wmFontSizeInp.value = db.watermark.fontSize!=null ? db.watermark.fontSize : 100;
+
+  const densityLabels = {1:'बहुत विरल',2:'बहुत विरल',3:'विरल',4:'विरल',5:'सामान्य',6:'सामान्य',7:'घना',8:'घना',9:'बहुत घना',10:'अत्यधिक घना'};
+
+  function refreshWmPreview(){
+    const settings = {
+      style: wmStyleSel.value,
+      color: wmColorInp.value,
+      opacity: (parseInt(wmOpacityInp.value,10)||14)/100,
+      text: wmTextInp.value.trim(),
+      density: parseInt(wmDensityInp.value,10)||6,
+      thickness: wmThicknessSel.value,
+      fontSize: parseInt(wmFontSizeInp.value,10)||100
+    };
+    wmOpacityVal.textContent = wmOpacityInp.value + '%';
+    wmDensityVal.textContent = densityLabels[settings.density] || settings.density;
+    wmFontSizeVal.textContent = settings.fontSize + '%';
+    const nameForPreview = settings.text || db.school.name || 'हमारा विद्यालय';
+    wmPreview.innerHTML = buildWatermarkSVG(nameForPreview, settings, 'preview');
+  }
+  [wmStyleSel, wmColorInp, wmOpacityInp, wmDensityInp, wmThicknessSel, wmFontSizeInp, wmTextInp].forEach(elm=>{
+    elm.addEventListener('input', refreshWmPreview);
+    elm.addEventListener('change', refreshWmPreview);
+  });
+  setTimeout(refreshWmPreview, 0);
+
+  wrap.querySelector('#wmSave').onclick = async ()=>{
+    db.watermark = {
+      enabled: wmEnabledChk.checked,
+      style: wmStyleSel.value,
+      color: wmColorInp.value,
+      opacity: (parseInt(wmOpacityInp.value,10)||14)/100,
+      text: wmTextInp.value.trim(),
+      density: parseInt(wmDensityInp.value,10)||6,
+      thickness: wmThicknessSel.value,
+      fontSize: parseInt(wmFontSizeInp.value,10)||100
+    };
+    await saveDB();
+    const btn = wrap.querySelector('#wmSave');
+    const old = btn.textContent;
+    btn.textContent = 'सेव हो गया ✓';
+    setTimeout(()=>{ if(btn) btn.textContent = old; }, 1500);
+  };
+
+  const classSel = wrap.querySelector('#acClass');
+  const examSel = wrap.querySelector('#acExam');
+  Object.keys(db.classes).forEach(c=> classSel.appendChild(el(`<option value="${c}">${c}</option>`)));
+  db.exams.forEach(ex=> examSel.appendChild(el(`<option value="${ex}">${ex}</option>`)));
+
+  if(Object.keys(db.classes).length===0){
+    wrap.insertBefore(el(`<div class="note">पहले "कक्षा व छात्र" टैब में कक्षा व छात्र जोड़ें</div>`), wrap.querySelector('#acScheduleHost'));
+  }
+
+  function getSchedule(exam, cls){
+    db.examSchedule[exam] = db.examSchedule[exam] || {};
+    db.examSchedule[exam][cls] = db.examSchedule[exam][cls] || {};
+    return db.examSchedule[exam][cls];
+  }
+
+  function drawSchedule(){
+    const cls = classSel.value, exam = examSel.value;
+    const host = wrap.querySelector('#acScheduleHost');
+    host.innerHTML='';
+    if(!cls || !exam) return;
+    const subjects = subjectsForClass(cls);
+    if(subjects.length===0){ host.appendChild(el(`<div class="empty">इस कक्षा के लिए कोई विषय असाइन नहीं है — पहले "विषय असाइन" टैब में विषय जोड़ें</div>`)); return; }
+    const sched = getSchedule(exam, cls);
+    const box = el(`<div class="sched-editor" style="margin-top:20px;">
+      <h3 style="margin:0 0 8px;color:var(--chalk);font-size:1rem;">परीक्षा तालिका — कक्षा ${cls} · ${exam}</h3>
+      <table><thead><tr><th style="width:36%;">विषय</th><th>दिनांक</th><th>समय</th></tr></thead><tbody id="schedRows"></tbody></table>
+      <button class="primary no-print" id="saveSchedBtn" style="margin-top:12px;">तालिका सेव करें</button>
+      <span id="schedMsg" class="no-print" style="margin-left:10px;color:var(--chalk);font-size:.85rem;"></span>
+    </div>`);
+    const rows = box.querySelector('#schedRows');
+    subjects.forEach(sub=>{
+      const existing = sched[sub.subject] || {};
+      const tr = el(`<tr>
+        <td>${sub.subject}</td>
+        <td><input type="date" data-sub="${sub.subject}" class="schedDate" value="${existing.date||''}"></td>
+        <td><input type="time" data-sub="${sub.subject}" class="schedTime" value="${existing.time||''}"></td>
+      </tr>`);
+      rows.appendChild(tr);
+    });
+    box.querySelector('#saveSchedBtn').onclick = async ()=>{
+      box.querySelectorAll('.schedDate').forEach(inp=>{
+        const sub = inp.dataset.sub;
+        sched[sub] = sched[sub] || {};
+        sched[sub].date = inp.value;
+      });
+      box.querySelectorAll('.schedTime').forEach(inp=>{
+        const sub = inp.dataset.sub;
+        sched[sub] = sched[sub] || {};
+        sched[sub].time = inp.value;
+      });
+      await saveDB();
+      const msg = box.querySelector('#schedMsg');
+      if(msg){ msg.textContent = 'सेव हो गया ✓'; setTimeout(()=>{ if(msg) msg.textContent=''; }, 2000); }
+    };
+    host.appendChild(box);
+  }
+
+  function drawStudents(){
+    const cls = classSel.value, exam = examSel.value;
+    const host = wrap.querySelector('#acStudentHost');
+    host.innerHTML = '';
+    if(!cls || !exam) return;
+    const students = (db.classes[cls]||{}).students || [];
+    if(students.length===0){ host.appendChild(el(`<div class="empty">इस कक्षा में कोई छात्र नहीं है</div>`)); return; }
+
+    const controls = el(`<div class="row" style="align-items:center;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--muted);">
+        <input type="checkbox" id="acSelectAll" checked> सभी चुनें
+      </label>
+      <div style="flex:1;"></div>
+      <button class="ghost" id="acPrintBtn">चयनित छात्रों के प्रवेश पत्र बनाएं</button>
+    </div>`);
+    host.appendChild(controls);
+    const listBox = el(`<div id="acStuList" style="margin-top:10px;"></div>`);
+    host.appendChild(listBox);
+    students.forEach(s=>{
+      const row = el(`<label class="stu-pick-row">
+        <input type="checkbox" class="acStuChk" data-sid="${s.id}" checked>
+        <span class="mono roll">${s.roll}</span><span>${s.name}</span>
+      </label>`);
+      listBox.appendChild(row);
+    });
+    host.querySelector('#acSelectAll').onchange = (e)=>{
+      listBox.querySelectorAll('.acStuChk').forEach(chk=> chk.checked = e.target.checked);
+    };
+    host.querySelector('#acPrintBtn').onclick = ()=>{
+      const selectedIds = Array.from(listBox.querySelectorAll('.acStuChk:checked')).map(c=>c.dataset.sid);
+      if(selectedIds.length===0){ alert('कृपया कम से कम एक छात्र चुनें'); return; }
+      ui.admitPrintView = {cls, exam, ids: selectedIds};
+      render();
+    };
+  }
+
+  classSel.onchange = ()=>{ drawSchedule(); drawStudents(); };
+  examSel.onchange = ()=>{ drawSchedule(); drawStudents(); };
+  setTimeout(()=>{ drawSchedule(); drawStudents(); }, 0);
+  return wrap;
+}
+
+// Builds the admit-card watermark SVG. Covers the full A4 page (210mm x 297mm, used
+// here as viewBox units) so it works as a true full-page watermark, not just a small
+// centered patch. `settings` = {style, color, opacity, text}. `uid` must be unique per
+// card instance (e.g. student id) so multiple admit cards printed together never share
+// SVG element ids — shared ids across repeated <svg> blocks is what caused the
+// watermark to silently fail to render/print correctly before.
+function buildWatermarkSVG(schoolName, settings, uid){
+  settings = settings || {};
+  const name = ((settings.text && settings.text.trim()) || schoolName || 'विद्यालय').trim();
+  const color = settings.color || '#2F5D50';
+  const baseOpacity = (settings.opacity!=null) ? settings.opacity : 0.14;
+  const style = settings.style || 'rings';
+  const density = Math.min(10, Math.max(1, settings.density!=null ? settings.density : 6));
+  const thickness = settings.thickness || 'normal';
+  const sizeMult = (settings.fontSize!=null ? settings.fontSize : 100)/100; // text size scale (50%–200%)
+  const idp = 'wm' + String(uid).replace(/[^a-zA-Z0-9]/g,'') + '_';
+
+  // Thickness → font-weight (only 500/700 are actually loaded for this font, so
+  // "bold" is reinforced with an SVG stroke around the glyphs — this is what makes
+  // the watermark visibly thicker/thinner in both screen and print reliably).
+  const thicknessMap = {
+    thin:   {weight:500, stroke:0.05},
+    normal: {weight:700, stroke:0.30},
+    bold:   {weight:700, stroke:0.85}
+  };
+  const tk = thicknessMap[thickness] || thicknessMap.normal;
+  const strokeAttr = tk.stroke>0 ? `stroke="${color}" stroke-width="${tk.stroke}"` : '';
+
+  // Density → how tightly the pattern repeats/how many rings or turns it has.
+  // 1 = बहुत विरल (sparse), 5 = बहुत घना (dense).
+  // density is now 1–10 (doubled range/resolution). t=0 → sparsest, t=1 → densest —
+  // and the densest end is calibrated roughly 2x tighter than the old 1–5 scale.
+  const dt = (density-1)/9;
+  const spacingMult = 1.6 - dt*1.3;   // 1→1.6 (wide gaps), 10→0.3 (very tight/dense)
+  const ringCount = 4 + Math.round(dt*14); // 1→4 rings, 10→18 rings
+  const spiralTurns = 2 + dt*10;       // 1→2, 10→12 turns
+
+  const W = 210, H = 297, cx = W/2, cy = H/2;
+  const cornerR = Math.sqrt(cx*cx + cy*cy); // ≈182mm
+  const FONT = "'Noto Serif Devanagari',serif";
+
+  function ringsStyle(){
+    let defs = '', texts = '';
+    for(let i=0;i<ringCount;i++){
+      const t = i/(ringCount-1);
+      const r = 14 + t*(cornerR-14);
+      const size = (6 + t*11)*sizeMult;
+      const op = baseOpacity * (1 - t*0.45);
+      const id = `${idp}r${i}`;
+      defs += `<path id="${id}" d="M ${cx-r},${cy} a ${r},${r} 0 1,1 ${r*2},0 a ${r},${r} 0 1,1 -${r*2},0" fill="none"/>`;
+      const circumference = 2*Math.PI*r;
+      const approxCharWidth = size*0.6;
+      const unit = name + '   •   ';
+      const oneRepeatLen = unit.length * approxCharWidth;
+      const repeats = Math.max(2, Math.round(circumference / oneRepeatLen));
+      const repeatedText = Array(repeats).fill(name).join('   •   ') + '   •   ';
+      texts += `<text style="font-size:${size}px;font-family:${FONT};font-weight:${tk.weight};letter-spacing:1px;" fill="${color}" fill-opacity="${op.toFixed(3)}" ${strokeAttr} stroke-opacity="${(op*0.9).toFixed(3)}">
+        <textPath href="#${id}" startOffset="0">${repeatedText}</textPath>
+      </text>`;
+    }
+    return `<defs>${defs}</defs>${texts}`;
+  }
+
+  function spiralStyle(){
+    const maxTheta = spiralTurns * 2 * Math.PI;
+    const a = 6;
+    const b = (cornerR - a) / maxTheta;
+    const pts = [];
+    const steps = 260;
+    for(let i=0;i<=steps;i++){
+      const theta = (i/steps) * maxTheta;
+      const r = a + b*theta;
+      pts.push(`${(cx + r*Math.cos(theta)).toFixed(2)},${(cy + r*Math.sin(theta)).toFixed(2)}`);
+    }
+    const id = `${idp}spiral`;
+    const pathD = 'M ' + pts.join(' L ');
+    const segCount = 4 + density; // denser = more growing text segments along the spiral
+    let texts = '';
+    for(let i=0;i<segCount;i++){
+      const t = i/(segCount-1);
+      const offsetPct = (2 + t*88).toFixed(1) + '%';
+      const size = (6 + t*8)*sizeMult;
+      const op = baseOpacity * (1 - i*(0.5/segCount));
+      texts += `<text style="font-size:${size}px;font-family:${FONT};font-weight:${tk.weight};letter-spacing:1px;" fill="${color}" fill-opacity="${Math.max(op,0.03).toFixed(3)}" ${strokeAttr} stroke-opacity="${Math.max(op*0.9,0.03).toFixed(3)}">
+        <textPath href="#${id}" startOffset="${offsetPct}">${(name+'   •   ').repeat(6)}</textPath>
+      </text>`;
+    }
+    return `<defs><path id="${id}" d="${pathD}" fill="none"/></defs>${texts}`;
+  }
+
+  function singleStyle(){
+    const size = 22*sizeMult;
+    return `<g transform="rotate(-32 ${cx} ${cy})">
+      <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"
+        style="font-size:${size}px;font-family:${FONT};font-weight:${tk.weight};letter-spacing:2px;"
+        fill="${color}" fill-opacity="${baseOpacity}" ${strokeAttr} stroke-opacity="${baseOpacity*0.9}">${name}</text>
+    </g>`;
+  }
+
+  function diagonalStyle(){
+    const stepX = 60*spacingMult, stepY = 50*spacingMult, size = 9*sizeMult;
+    let texts = '';
+    for(let y=-stepY; y<=H+stepY; y+=stepY){
+      for(let x=-stepX; x<=W+stepX; x+=stepX){
+        texts += `<text x="${x}" y="${y}" transform="rotate(-30 ${x} ${y})" text-anchor="middle"
+          style="font-size:${size}px;font-family:${FONT};font-weight:${tk.weight};letter-spacing:.5px;"
+          fill="${color}" fill-opacity="${baseOpacity}" ${strokeAttr} stroke-opacity="${baseOpacity*0.9}">${name}</text>`;
+      }
+    }
+    return texts;
+  }
+
+  function gridStyle(){
+    const stepX = 55*spacingMult, stepY = 40*spacingMult, size = 8.5*sizeMult;
+    let texts = '';
+    for(let y=stepY/2; y<=H; y+=stepY){
+      for(let x=stepX/2; x<=W; x+=stepX){
+        texts += `<text x="${x}" y="${y}" text-anchor="middle"
+          style="font-size:${size}px;font-family:${FONT};font-weight:${tk.weight};letter-spacing:.5px;"
+          fill="${color}" fill-opacity="${baseOpacity}" ${strokeAttr} stroke-opacity="${baseOpacity*0.9}">${name}</text>`;
+      }
+    }
+    return texts;
+  }
+
+  // सीधी क्षैतिज पंक्तियाँ — no rotation, one continuous repeated line of text
+  // across the full width of the page, stacked in rows top to bottom.
+  function horizontalStyle(){
+    const stepY = 34*spacingMult, size = 9.5*sizeMult;
+    const approxCharWidth = size*0.6;
+    const unit = name + '   •   ';
+    const repeats = Math.max(3, Math.ceil((W+2*unit.length*approxCharWidth) / (unit.length*approxCharWidth)));
+    const line = Array(repeats).fill(name).join('   •   ') + '   •   ';
+    let texts = '';
+    for(let y=stepY/2; y<=H; y+=stepY){
+      texts += `<text x="${-unit.length*approxCharWidth}" y="${y}"
+        style="font-size:${size}px;font-family:${FONT};font-weight:${tk.weight};letter-spacing:.5px;"
+        fill="${color}" fill-opacity="${baseOpacity}" ${strokeAttr} stroke-opacity="${baseOpacity*0.9}">${line}</text>`;
+    }
+    return texts;
+  }
+
+  // सीधी ऊर्ध्वाधर पट्टियाँ — same idea rotated 90°, running top-to-bottom in columns.
+  function verticalStyle(){
+    const stepX = 34*spacingMult, size = 9.5*sizeMult;
+    const approxCharWidth = size*0.6;
+    const unit = name + '   •   ';
+    const repeats = Math.max(3, Math.ceil((H+2*unit.length*approxCharWidth) / (unit.length*approxCharWidth)));
+    const line = Array(repeats).fill(name).join('   •   ') + '   •   ';
+    let texts = '';
+    for(let x=stepX/2; x<=W; x+=stepX){
+      texts += `<text x="${x}" y="${-unit.length*approxCharWidth}" transform="rotate(90 ${x} 0)"
+        style="font-size:${size}px;font-family:${FONT};font-weight:${tk.weight};letter-spacing:.5px;"
+        fill="${color}" fill-opacity="${baseOpacity}" ${strokeAttr} stroke-opacity="${baseOpacity*0.9}">${line}</text>`;
+    }
+    return texts;
+  }
+
+  let inner;
+  switch(style){
+    case 'spiral': inner = spiralStyle(); break;
+    case 'single': inner = singleStyle(); break;
+    case 'diagonal': inner = diagonalStyle(); break;
+    case 'grid': inner = gridStyle(); break;
+    case 'horizontal': inner = horizontalStyle(); break;
+    case 'vertical': inner = verticalStyle(); break;
+    case 'rings':
+    default: inner = ringsStyle(); break;
+  }
+
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+}
+
+function renderAdmitCardPrintView(view){
+  const {cls, exam, ids} = view;
+  const students = ((db.classes[cls]||{}).students||[]).filter(s=> ids.includes(s.id));
+  const subjects = subjectsForClass(cls);
+  const sched = ((db.examSchedule[exam]||{})[cls]) || {};
+  const schoolName = (db.school && db.school.name) ? db.school.name : 'हमारा विद्यालय';
+  const schoolAddr = (db.school && db.school.address) ? db.school.address : '';
+
+  const wrap = el(`<div id="admitPrintWrap"></div>`);
+  const bar = el(`<div class="admit-card-toolbar no-print">
+    <button class="ghost" id="acBack">← वापस</button>
+    <button class="primary" id="acDoPrint">प्रिंट करें</button>
+    <span style="color:var(--muted);font-size:.85rem;">कुल ${students.length} प्रवेश पत्र तैयार</span>
+  </div>`);
+  bar.querySelector('#acBack').onclick = ()=>{ ui.admitPrintView=null; render(); };
+  bar.querySelector('#acDoPrint').onclick = ()=> window.print();
+  wrap.appendChild(bar);
+
+  const sortedSubjects = subjects.slice().sort((a,b)=>{
+    const da = (sched[a.subject]||{}).date || '9999-99-99';
+    const db_ = (sched[b.subject]||{}).date || '9999-99-99';
+    return da.localeCompare(db_);
+  });
+
+  const wmSettings = db.watermark || {enabled:true, style:'rings', color:'#2F5D50', opacity:0.14, text:''};
+  const wmEnabled = wmSettings.enabled !== false;
+  const allInstructions = [
+    'यह प्रवेश पत्र प्रत्येक परीक्षा में साथ लाना अनिवार्य है।',
+    'परीक्षा शुरू होने से 30 मिनट पहले परीक्षा कक्ष में उपस्थित हों।',
+    'मोबाइल फोन व अन्य इलेक्ट्रॉनिक उपकरण परीक्षा कक्ष में वर्जित हैं।',
+    'प्रवेश पत्र खो जाने पर तुरंत कक्षा अध्यापक/कार्यालय को सूचित करें।',
+    ...(db.customInstructions || [])
+  ];
+
+  students.forEach(s=>{
+    const card = el(`<div class="admit-card"></div>`);
+    if(wmEnabled){
+      const watermarkSVG = buildWatermarkSVG(schoolName, wmSettings, s.id);
+      card.appendChild(el(`<div class="ac-watermark">${watermarkSVG}</div>`));
+    }
+    card.appendChild(el(`<div class="ac-header">
+      <div class="ac-school-name">${schoolName}</div>
+      ${schoolAddr?`<div class="ac-school-addr">${schoolAddr}</div>`:''}
+      <div class="ac-admit-title">प्रवेश पत्र · ADMIT CARD</div>
+      <div class="ac-exam-sub">${exam}</div>
+    </div>`));
+    card.appendChild(el(`<div class="ac-main">
+      <div class="ac-photo">${s.photo ? `<img src="${s.photo}">` : 'विद्यार्थी<br>फोटो'}</div>
+      <div class="ac-details"><table>
+        <tr><td class="k">छात्र का नाम</td><td>${s.name}</td></tr>
+        <tr><td class="k">पिता का नाम</td><td>${s.father || s.guardian || '—'}</td></tr>
+        <tr><td class="k">माता का नाम</td><td>${s.mother || '—'}</td></tr>
+        <tr><td class="k">कक्षा</td><td>${cls}</td></tr>
+        <tr><td class="k">रोल नंबर</td><td class="mono">${s.roll}</td></tr>
+      </table></div>
+    </div>`));
+    const schedRows = sortedSubjects.map((sub,i)=>{
+      const e = sched[sub.subject] || {};
+      return `<tr><td class="mono">${i+1}</td><td>${sub.subject}</td><td>${formatDateDMY(e.date)}</td><td>${hindiDay(e.date)}</td><td>${formatTime12(e.time)}</td></tr>`;
+    }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);">परीक्षा तालिका अभी नहीं भरी गई</td></tr>`;
+    card.appendChild(el(`<div class="ac-sched">
+      <h4>परीक्षा तालिका (Exam Schedule)</h4>
+      <table><thead><tr><th>क्रम</th><th>विषय</th><th>दिनांक</th><th>दिन</th><th>समय</th></tr></thead>
+      <tbody>${schedRows}</tbody></table>
+    </div>`));
+    card.appendChild(el(`<div class="ac-instructions">
+      <h5>परीक्षार्थियों के लिए निर्देश</h5>
+      <ul>${allInstructions.map(t=>`<li>${t}</li>`).join('')}</ul>
+    </div>`));
+    card.appendChild(el(`<div class="ac-signatures">
+      <div class="ac-sig"><div class="line">कक्षा अध्यापक</div></div>
+      <div class="ac-sig"><div class="line">प्राचार्य</div></div>
+      <div class="ac-sig"><div class="line">अभिभावक हस्ताक्षर</div></div>
+    </div>`));
+    wrap.appendChild(card);
+  });
+  return wrap;
+}
+
+// ---------- TEACHER ----------
+function renderTeacherTab(){
+  const u = session.username;
+  const assigns = db.assignments[u] || [];
+
+  if(ui.teacherTab){
+    const a = ui.teacherTab;
+    const cls = a.cls, subject = a.subject, components = a.components;
+    if(!ui.examTab) ui.examTab = db.exams[0];
+    const exam = ui.examTab;
+
+    const wrap = el(`<div class="page"><div class="punch"></div>
+      <button class="ghost no-print" id="backBtn" style="margin-bottom:16px;">← वापस मेरी कक्षाओं में</button>
+      <h2 class="section-title">${cls} — ${subject}</h2>
+      <p class="section-sub">परीक्षा चुनें, फिर हर छात्र के अंक भरकर सेव करें</p>
+      <div class="exam-tabbar no-print" id="examTabbar"></div>
+      <div class="note" id="fillSummary" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;"></div>
+      <table><thead><tr><th>रोल नं.</th><th>नाम</th>
+        ${components.map(c=>`<th class="num">${c.name===MAIN_KEY?'अंक':c.name} (${c.max})</th>`).join('')}
+        ${components.length>1?'<th class="num">कुल</th>':''}
+        <th class="num">स्थिति</th>
+      </tr></thead><tbody id="markRows"></tbody></table>
+      <button class="primary" id="saveMarks" style="margin-top:14px;">अंक सेव करें</button>
+      <span id="savedMsg" style="margin-left:10px;color:var(--chalk);font-size:.85rem;"></span>
+      <div id="markErr" style="color:var(--redpen);font-size:.85rem;margin-top:8px;"></div>
+    </div>`);
+
+    wrap.querySelector('#backBtn').onclick = ()=>{ ui.teacherTab=null; ui.examTab=null; render(); };
+
+    const examTabbar = wrap.querySelector('#examTabbar');
+    db.exams.forEach(ex=>{
+      const b = el(`<button class="${ex===exam?'active':''}">${ex}</button>`);
+      b.onclick = ()=>{ ui.examTab = ex; render(); };
+      examTabbar.appendChild(b);
+    });
+
+    const students = (db.classes[cls]||{}).students || [];
+    const rows = wrap.querySelector('#markRows');
+    if(students.length===0){
+      rows.appendChild(el(`<tr><td colspan="${3+components.length+(components.length>1?1:0)}" style="text-align:center;color:var(--muted);">इस कक्षा में कोई छात्र नहीं है</td></tr>`));
+    }
+    const summaryBox = wrap.querySelector('#fillSummary');
+    function updateSummary(){
+      if(students.length===0){ summaryBox.style.display='none'; return; }
+      summaryBox.style.display='flex';
+      const rowEls = Array.from(rows.querySelectorAll('tr[data-status]'));
+      const done = rowEls.filter(r=>r.dataset.status==='done').length;
+      const partial = rowEls.filter(r=>r.dataset.status==='partial').length;
+      const pending = rowEls.filter(r=>r.dataset.status==='pending').length;
+      summaryBox.innerHTML = `<b style="color:var(--chalk);">${done}/${students.length}</b> छात्रों के अंक पूरे भरे`
+        + (partial? ` · <b style="color:var(--marigold);">${partial}</b> आंशिक` : '')
+        + (pending? ` · <b style="color:var(--redpen);">${pending}</b> बाकी` : '');
+    }
+    students.forEach(s=>{
+      const tr = el(`<tr></tr>`);
+      tr.appendChild(el(`<td class="mono">${s.roll}</td>`));
+      tr.appendChild(el(`<td>${s.name}</td>`));
+      const inputs = [];
+      components.forEach(c=>{
+        const existing = componentValue(exam, cls, subject, c.name, s.id);
+        const td = el(`<td class="num"><input type="number" min="0" max="${c.max}" style="width:80px;text-align:center;" data-comp="${c.name}" data-sid="${s.id}" value="${existing ?? ''}"></td>`);
+        inputs.push(td.querySelector('input'));
+        tr.appendChild(td);
+      });
+      let totalCell = null;
+      if(components.length>1){
+        totalCell = el(`<td class="num mono" data-total-for="${s.id}">—</td>`);
+        tr.appendChild(totalCell);
+      }
+      const statusCell = el(`<td class="num"><span class="type-tag" data-status-badge></span></td>`);
+      tr.appendChild(statusCell);
+      const badge = statusCell.querySelector('[data-status-badge]');
+      function recomputeTotal(){
+        let sum=0, any=false;
+        inputs.forEach(inp=>{ if(inp.value!==''){ sum+=parseFloat(inp.value)||0; any=true; } });
+        if(totalCell) totalCell.textContent = any ? sum : '—';
+      }
+      function refreshStatus(){
+        const filled = inputs.filter(inp=>inp.value.trim()!=='').length;
+        let status, label, bg, color;
+        if(filled===0){ status='pending'; label='बाकी'; bg='rgba(178,58,50,.12)'; color='var(--redpen)'; }
+        else if(filled===inputs.length){ status='done'; label='भरा ✓'; bg='rgba(47,93,80,.14)'; color='var(--chalk)'; }
+        else { status='partial'; label='आंशिक'; bg='rgba(217,143,43,.16)'; color='var(--marigold)'; }
+        tr.dataset.status = status;
+        badge.textContent = label;
+        badge.style.background = bg;
+        badge.style.color = color;
+        updateSummary();
+      }
+      function validateInput(inp){
+        const compMax = parseFloat(inp.max);
+        const v = inp.value.trim();
+        let bad = false;
+        if(v!==''){
+          const num = parseFloat(v);
+          if(isNaN(num) || num>compMax || num<0) bad = true;
+        }
+        inp.classList.toggle('mark-invalid', bad);
+        return !bad;
+      }
+      inputs.forEach(inp=> inp.addEventListener('input', ()=>{ recomputeTotal(); validateInput(inp); refreshStatus(); }));
+      inputs.forEach(inp=> validateInput(inp));
+      recomputeTotal();
+      refreshStatus();
+      rows.appendChild(tr);
+    });
+    updateSummary();
+
+    wrap.querySelector('#saveMarks').onclick = async ()=>{
+      const errBox = wrap.querySelector('#markErr');
+      errBox.textContent = '';
+      const allInputs = Array.from(rows.querySelectorAll('input[data-comp]'));
+      let firstBad = null;
+      const badList = [];
+      allInputs.forEach(inp=>{
+        const comp = inp.dataset.comp, sid = inp.dataset.sid;
+        const compMax = components.find(c=>c.name===comp).max;
+        const v = inp.value.trim();
+        let bad = false;
+        if(v!==''){
+          const num = parseFloat(v);
+          if(isNaN(num) || num>compMax || num<0) bad = true;
+        }
+        inp.classList.toggle('mark-invalid', bad);
+        if(bad){
+          if(!firstBad) firstBad = inp;
+          const tr = inp.closest('tr');
+          const rollTd = tr ? tr.querySelector('td.mono') : null;
+          badList.push(`रोल ${rollTd?rollTd.textContent:'?'} — ${comp==='मुख्य'?'अंक':comp} (अधिकतम ${compMax})`);
+        }
+      });
+      if(firstBad){
+        errBox.textContent = 'ये अंक अधिकतम सीमा से ज़्यादा हैं, कृपया ठीक करें: ' + badList.join('; ');
+        firstBad.focus();
+        firstBad.scrollIntoView({behavior:'smooth', block:'center'});
+        return;
+      }
+      db.marks[exam] = db.marks[exam] || {};
+      db.marks[exam][cls] = db.marks[exam][cls] || {};
+      db.marks[exam][cls][subject] = db.marks[exam][cls][subject] || {};
+      components.forEach(c=>{
+        db.marks[exam][cls][subject][c.name] = db.marks[exam][cls][subject][c.name] || {};
+      });
+      allInputs.forEach(inp=>{
+        const comp = inp.dataset.comp, sid = inp.dataset.sid;
+        const v = inp.value.trim();
+        if(v===''){ delete db.marks[exam][cls][subject][comp][sid]; }
+        else {
+          db.marks[exam][cls][subject][comp][sid] = parseFloat(v);
+        }
+      });
+      await saveDB();
+      wrap.querySelector('#savedMsg').textContent = 'सेव हो गया ✓';
+      setTimeout(()=>{ const m=wrap.querySelector('#savedMsg'); if(m) m.textContent=''; }, 2000);
+    };
+    return wrap;
+  }
+
+  const wrap = el(`<div class="page"><div class="punch"></div>
+    <h2 class="section-title">मेरी कक्षाएँ व विषय</h2>
+    <p class="section-sub">जिस कक्षा/विषय पर क्लिक करेंगे, वहाँ परीक्षा चुनकर अंक भर सकते हैं</p>
+    <div class="card-grid" id="assignGrid"></div></div>`);
+  const grid = wrap.querySelector('#assignGrid');
+  if(assigns.length===0){
+    grid.appendChild(el(`<div class="empty">आपको अभी कोई कक्षा/विषय असाइन नहीं हुआ है। एडमिन से संपर्क करें।</div>`));
+  }
+  assigns.forEach(a=>{
+    const students = ((db.classes[a.cls]||{}).students||[]);
+    const studentCount = students.length;
+    const typeLabel = a.components.length===1 ? '' : (a.components[0].name.includes('Practical')||a.components[1] && a.components[1].name.includes('Practical') ? '<span class="type-tag">Theory+Practical</span>' : '<span class="type-tag">दो प्रश्नपत्र</span>');
+    const examStatusLine = studentCount>0 ? db.exams.map(ex=>{
+      const done = students.filter(s=> subjectResult(ex, a.cls, a.subject, a.components, s.id).any
+        && a.components.every(c=>{ const v=componentValue(ex,a.cls,a.subject,c.name,s.id); return v!==undefined && v!==null && v!==''; })
+      ).length;
+      const color = done===0 ? 'var(--redpen)' : (done===studentCount ? 'var(--chalk)' : 'var(--marigold)');
+      return `<span style="color:${color};">${ex}: ${done}/${studentCount}</span>`;
+    }).join(' · ') : '';
+    const card = el(`<div class="assign-card">
+      <div class="cls">कक्षा ${a.cls}</div>
+      <div class="sub">${a.subject} ${typeLabel}</div>
+      <div class="meta">${studentCount} छात्र · घटक: ${a.components.map(c=>c.name===MAIN_KEY?'—':c.name).filter(Boolean).join(', ')||'सामान्य'}</div>
+      ${examStatusLine? `<div class="meta" style="margin-top:6px;font-weight:600;">${examStatusLine}</div>` : ''}
+    </div>`);
+    card.onclick = ()=>{ ui.teacherTab = a; ui.examTab = null; render(); };
+    grid.appendChild(card);
+  });
+  return wrap;
+}
+
+// ---------- INIT ----------
+(async function init(){
+  render(); // show the UI (login screen) immediately, no blank/loading wait
+  try{ await firebase.auth().signInAnonymously(); }
+  catch(e){ console.error('firebase anonymous sign-in failed', e); }
+  authReadyResolve();
+  await loadRegistry();
+  await loadTeacherIndex();
+  // school/teacher/superadmin login handlers each fetch fresh registry/teacherIndex
+  // on submit, so we don't need to re-render here.
+})();
+</script>
+</body>
+</html>
